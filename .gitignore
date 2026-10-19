@@ -1,0 +1,9 @@
+# MediaPipe model files (download from Google, see requirements/readme)
+*.task
+
+# Recorded and converted landmark data
+dataset_landmarks_only/
+dataset_include_landmarks/
+
+__pycache__/
+*.pyc
