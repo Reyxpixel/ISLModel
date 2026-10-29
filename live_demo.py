@@ -7,14 +7,17 @@ guesses are shown. Press q to quit.
 
 Landmarks come from mpipe.py's own extract_landmarks (same MediaPipe settings, same mirrored
 frame), so live input matches the recorded training data. Needs hand_landmarker.task in the
-folder you run it from.
+folder you run it from, and face_landmarker.task for models trained with --position.
 """
 import argparse
 import time
 
 import cv2
+import mediapipe as mp
 import numpy as np
 import torch
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision
 
 from mpipe import extract_landmarks                 # importing mpipe loads the hand detector
 from isl_model.model import SignBiLSTM
@@ -39,11 +42,20 @@ def main():
     model = SignBiLSTM(ckpt["features"], len(labels))
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
+    with_position = ckpt.get("with_position", False)
+    face_detector = None
+    if with_position:
+        # Same settings as mpipe.py's face tracking
+        face_detector = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
+            base_options=mp_python.BaseOptions(model_asset_path="face_landmarker.task"),
+            running_mode=vision.RunningMode.VIDEO, num_faces=1,
+            min_face_detection_confidence=0.5, min_tracking_confidence=0.5))
+    print(f"{len(labels)} signs, hand position {'on' if with_position else 'off'}")
 
     cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FPS, 30)
     frames_per_take = int(args.seconds * 30)
-    state, t0, take, result, ts = "idle", 0.0, [], None, 0
+    state, t0, take, screens, faces, result, ts = "idle", 0.0, [], [], [], None, 0
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -56,11 +68,19 @@ def main():
             left = 2.0 - (time.time() - t0)
             put(display, f"GET READY: {left:.1f}s", 240, 1.5, (0, 165, 255), 4)
             if left <= 0:
-                state, take = "recording", []
+                state, take, screens, faces = "recording", [], [], []
         elif state == "recording":
-            hand_world, hand_screen, _, _ = extract_landmarks(cv2.cvtColor(mirrored, cv2.COLOR_BGR2RGB), ts)
+            rgb = cv2.cvtColor(mirrored, cv2.COLOR_BGR2RGB)
+            hand_world, hand_screen, _, _ = extract_landmarks(rgb, ts)
+            face = np.zeros((478, 3), np.float32)
+            if face_detector:
+                fres = face_detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ts)
+                if fres.face_landmarks:
+                    face[:] = [[lm.x, lm.y, lm.z] for lm in fres.face_landmarks[0]]
             ts += 33
             take.append(hand_world)
+            screens.append(hand_screen)
+            faces.append(face)
             h, w, _ = display.shape
             for x, y, _ in hand_screen.reshape(-1, 3):
                 if x or y:
@@ -73,7 +93,8 @@ def main():
                     result = [("no hands detected", 0.0)]
                 else:
                     with torch.no_grad():
-                        probs = torch.softmax(model(torch.from_numpy(preprocess(hands))[None]), 1)[0]
+                        x = preprocess(hands, np.array(screens), np.array(faces), with_position=with_position)
+                        probs = torch.softmax(model(torch.from_numpy(x)[None]), 1)[0]
                     top = probs.topk(3)
                     result = [(labels[i], p) for p, i in zip(top.values.tolist(), top.indices.tolist())]
                 state = "idle"

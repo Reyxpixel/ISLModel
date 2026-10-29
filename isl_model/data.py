@@ -4,8 +4,8 @@ Each folder is laid out the way mpipe.py and include_to_landmarks.py write it:
     <folder>/<word>/seq_NNN/landmarks/hands.npy
 If the folder has an index.csv with a "split" column (INCLUDE does), that split is used.
 Otherwise every take is assigned to train/val/test by a fixed per-word split, so a new folder
-(e.g. Vansh's recordings) works without any code changes. Extra files such as face_coords.npy
-are ignored for now.
+(e.g. Vansh's recordings) works without any code changes. hands_screen.npy and face_coords.npy
+are loaded when present, for models trained with hand position.
 """
 import csv
 import os
@@ -46,11 +46,15 @@ def load_folder(folder, seed=0):
                 if s.startswith("seq_") and os.path.exists(os.path.join(word_dir, s, "landmarks", "hands.npy"))]
         auto = _auto_split(seqs, seed)
         for seq in sorted(seqs):
+            lm = os.path.join(word_dir, seq, "landmarks")
+            optional = lambda name: np.load(os.path.join(lm, name)) if os.path.exists(os.path.join(lm, name)) else None
             takes.append({
                 "word": word,
                 "seq": seq,
                 "split": split_of.get((word, seq), auto[seq]),
-                "hands": np.load(os.path.join(word_dir, seq, "landmarks", "hands.npy")),
+                "hands": np.load(os.path.join(lm, "hands.npy")),
+                "hands_screen": optional("hands_screen.npy"),   # only in recordings that saved it
+                "face": optional("face_coords.npy"),            # only when face tracking was on
                 "source": folder,
             })
     return takes

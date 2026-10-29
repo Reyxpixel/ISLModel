@@ -16,28 +16,36 @@ from torch import nn
 
 from isl_model.data import load_folders
 from isl_model.model import SignBiLSTM
-from isl_model.preprocess import FEATURES, SEQ_LEN, preprocess
+from isl_model.preprocess import SEQ_LEN, n_features, preprocess
 
 
-def augment(hands, rng):
+def augment(take, rng):
     """Small random changes so the model doesn't memorise exact takes."""
-    hands = hands.copy()
+    hands = take["hands"].copy()
     present = ~np.all(hands == 0, axis=(2, 3))
     n = len(hands)
     # Random trim of up to 10% at each end, which also varies the signing speed after resampling
     a, b = rng.integers(0, max(1, n // 10) + 1, size=2)
-    hands, present = hands[a:n - b or None], present[a:n - b or None]
+    cut = slice(a, n - b or None)
+    hands, present = hands[cut], present[cut]
+    screen = take["hands_screen"][cut] if take.get("hands_screen") is not None else None
+    face = take["face"][cut] if take.get("face") is not None else None
+    if screen is not None:
+        screen = screen + rng.normal(0, 0.005, screen.shape).astype(np.float32)
     # Random size (hand size varies between people) and a small tilt around the camera axis
     angle = rng.uniform(-0.2, 0.2)
     rot = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]], np.float32)
     hands = hands @ rot.T * rng.uniform(0.85, 1.15)
     hands += rng.normal(0, 0.002, hands.shape).astype(np.float32)
     hands[~present] = 0                          # keep missing hands exactly zero
-    return hands
+    return hands, screen, face
 
 
-def to_tensor(takes, labels, rng=None):
-    x = np.stack([preprocess(augment(t["hands"], rng) if rng is not None else t["hands"]) for t in takes])
+def to_tensor(takes, labels, with_position, rng=None):
+    def features(t):
+        hands, screen, face = augment(t, rng) if rng is not None else (t["hands"], t.get("hands_screen"), t.get("face"))
+        return preprocess(hands, screen, face, with_position=with_position)
+    x = np.stack([features(t) for t in takes])
     y = np.array([labels.index(t["word"]) for t in takes])
     return torch.from_numpy(x), torch.from_numpy(y)
 
@@ -81,6 +89,8 @@ def main():
     ap.add_argument("--out", default=os.path.join("runs", "latest"))
     ap.add_argument("--epochs", type=int, default=200)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--position", action="store_true",
+                    help="also use where the hands are relative to the face (needs hands_screen.npy + face_coords.npy)")
     args = ap.parse_args()
 
     random.seed(args.seed)
@@ -95,10 +105,14 @@ def main():
     print(f"{len(takes)} takes, {len(labels)} signs | train {len(split['train'])}, "
           f"val {len(split['val'])}, test {len(split['test'])} | device {device}")
 
-    x_val, y_val = to_tensor(split["val"], labels)
-    x_test, y_test = to_tensor(split["test"], labels)
+    if args.position:
+        have = sum(t.get("hands_screen") is not None and t.get("face") is not None for t in takes)
+        print(f"position data in {have}/{len(takes)} takes")
+    x_val, y_val = to_tensor(split["val"], labels, args.position)
+    x_test, y_test = to_tensor(split["test"], labels, args.position)
+    features = n_features(args.position)
 
-    model = SignBiLSTM(FEATURES, len(labels)).to(device)
+    model = SignBiLSTM(features, len(labels)).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-2)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.epochs)
     loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
@@ -107,7 +121,7 @@ def main():
     best_val, best_state, best_epoch = -1.0, None, 0
     for epoch in range(1, args.epochs + 1):
         model.train()
-        x, y = to_tensor(split["train"], labels, rng)       # fresh augmentation every epoch
+        x, y = to_tensor(split["train"], labels, args.position, rng)    # fresh augmentation every epoch
         perm = torch.randperm(len(y))
         for i in range(0, len(y), 32):
             b = perm[i:i + 32]
@@ -133,11 +147,13 @@ def main():
     open(os.path.join(args.out, "report.txt"), "w").write(report)
     save_confusion(y_test.numpy(), pred.numpy(), labels, os.path.join(args.out, "confusion_matrix.png"),
                    f"Test set: {test_acc:.1%} correct ({len(y_test)} takes, {len(labels)} signs)")
-    torch.save({"state_dict": best_state, "labels": labels, "seq_len": SEQ_LEN, "features": FEATURES},
+    torch.save({"state_dict": best_state, "labels": labels, "seq_len": SEQ_LEN, "features": features,
+                "with_position": args.position},
                os.path.join(args.out, "model.pt"))
     json.dump({"test_accuracy": test_acc, "best_val_accuracy": best_val, "best_epoch": best_epoch,
                "n_test": len(y_test), "n_train": len(split["train"]), "n_val": len(split["val"]),
-               "signs": labels, "data": args.data, "seed": args.seed},
+               "signs": labels, "data": args.data, "seed": args.seed,
+               "with_position": args.position},
               open(os.path.join(args.out, "metrics.json"), "w"), indent=2)
     print("saved to", args.out)
 
