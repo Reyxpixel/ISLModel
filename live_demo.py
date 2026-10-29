@@ -1,0 +1,100 @@
+"""Live webcam demo: sign in front of the camera and see what the trained model predicts.
+
+    python live_demo.py --model runs/include_baseline/model.pt
+
+Press space, hold your hands ready during the countdown, then sign. After the take, the top 3
+guesses are shown. Press q to quit.
+
+Landmarks come from mpipe.py's own extract_landmarks (same MediaPipe settings, same mirrored
+frame), so live input matches the recorded training data. Needs hand_landmarker.task in the
+folder you run it from.
+"""
+import argparse
+import time
+
+import cv2
+import numpy as np
+import torch
+
+from mpipe import extract_landmarks                 # importing mpipe loads the hand detector
+from isl_model.model import SignBiLSTM
+from isl_model.preprocess import preprocess
+
+WINDOW = "ISL live demo"
+
+
+def put(img, text, y, scale=0.7, color=(255, 255, 255), thick=2):
+    cv2.putText(img, text, (20, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="runs/include_baseline/model.pt")
+    ap.add_argument("--seconds", type=float, default=2.5, help="length of each take")
+    ap.add_argument("--camera", type=int, default=0)
+    args = ap.parse_args()
+
+    ckpt = torch.load(args.model, map_location="cpu")
+    labels = ckpt["labels"]
+    model = SignBiLSTM(ckpt["features"], len(labels))
+    model.load_state_dict(ckpt["state_dict"])
+    model.eval()
+
+    cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    frames_per_take = int(args.seconds * 30)
+    state, t0, take, result, ts = "idle", 0.0, [], None, 0
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        mirrored = cv2.flip(frame, 1)
+        display = mirrored.copy()
+
+        if state == "countdown":
+            left = 2.0 - (time.time() - t0)
+            put(display, f"GET READY: {left:.1f}s", 240, 1.5, (0, 165, 255), 4)
+            if left <= 0:
+                state, take = "recording", []
+        elif state == "recording":
+            hand_world, hand_screen, _, _ = extract_landmarks(cv2.cvtColor(mirrored, cv2.COLOR_BGR2RGB), ts)
+            ts += 33
+            take.append(hand_world)
+            h, w, _ = display.shape
+            for x, y, _ in hand_screen.reshape(-1, 3):
+                if x or y:
+                    cv2.circle(display, (int(x * w), int(y * h)), 3, (0, 255, 255), -1)
+            cv2.circle(display, (30, 30), 12, (0, 0, 255), -1)
+            put(display, f"SIGN NOW ({len(take)}/{frames_per_take})", 38, 0.7, (0, 0, 255))
+            if len(take) >= frames_per_take:
+                hands = np.array(take, dtype=np.float32)
+                if np.all(hands == 0):
+                    result = [("no hands detected", 0.0)]
+                else:
+                    with torch.no_grad():
+                        probs = torch.softmax(model(torch.from_numpy(preprocess(hands))[None]), 1)[0]
+                    top = probs.topk(3)
+                    result = [(labels[i], p) for p, i in zip(top.values.tolist(), top.indices.tolist())]
+                state = "idle"
+        else:
+            put(display, "space: record a sign   q: quit", 30, 0.6, (200, 200, 200), 1)
+            if result:
+                word, p = result[0]
+                put(display, f"{word.replace('_', ' ').upper()}", 90, 1.4, (0, 255, 0), 3)
+                for k, (wd, pk) in enumerate(result):
+                    put(display, f"{k + 1}. {wd.replace('_', ' ')}  {pk:.0%}", 130 + 28 * k, 0.6)
+
+        cv2.imshow(WINDOW, display)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q") or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
+            break
+        if key == ord(" ") and state == "idle":
+            state, t0 = "countdown", time.time()
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()

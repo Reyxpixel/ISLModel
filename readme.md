@@ -30,3 +30,20 @@ curl -o face_landmarker.task https://storage.googleapis.com/mediapipe-models/fac
   `python include_to_landmarks.py --src <zip folder> --splits <split folder>`
 
 Model files and landmark data are not committed (see `.gitignore`).
+
+## Training and live demo
+
+```
+pip install torch scikit-learn matplotlib
+python train.py --data ../dataset_include_landmarks                              # INCLUDE only
+python train.py --data ../dataset_include_landmarks ../dataset_landmarks_only    # add new recordings
+python live_demo.py --model runs/latest/model.pt
+```
+
+- `isl_model/data.py` loads any folder laid out as `<word>/seq_NNN/landmarks/hands.npy`. It uses
+  `index.csv` splits when present, otherwise a fixed 70/10/20 split per word, so new recordings
+  need no code changes.
+- `isl_model/preprocess.py` turns a take into 32 frames x 128 features (both hands' coordinates
+  plus a hand-present flag). Training and the live demo both use it.
+- `live_demo.py` reuses `mpipe.py`'s `extract_landmarks`, so it needs `hand_landmarker.task` in
+  the folder it runs from. Press space, sign after the countdown, and it shows the top 3 guesses.

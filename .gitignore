@@ -7,3 +7,6 @@ dataset_include_landmarks/
 
 __pycache__/
 *.pyc
+
+# Training outputs
+runs/
