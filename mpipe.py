@@ -203,7 +203,7 @@ def main():
                 os.makedirs(lm_dir, exist_ok=True)
                 os.makedirs(lm_raw_dir, exist_ok=True)
 
-                seq_hands, seq_face_coords, seq_face_blend = [], [], []
+                seq_hands, seq_hands_screen, seq_face_coords, seq_face_blend = [], [], [], []
                 
                 hand_txt_path = os.path.join(lm_raw_dir, "hands_raw.txt")
                 face_txt_path = os.path.join(lm_raw_dir, "face_raw.txt")
@@ -231,6 +231,7 @@ def main():
                             global_frame_count += 1 
                             
                             seq_hands.append(hand_world)
+                            seq_hands_screen.append(hand_screen)
                             if ENABLE_FACE_TRACKING:
                                 seq_face_coords.append(face_screen)
                                 seq_face_blend.append(face_blend)
@@ -301,6 +302,9 @@ def main():
                     
                     # Always save hands
                     np.save(os.path.join(lm_dir, "hands.npy"), np.array(seq_hands))
+                    # Where each hand is in the frame (0-1, same mirrored frame as face_coords.npy).
+                    # hands.npy only holds hand shape, so this is what gives position and movement.
+                    np.save(os.path.join(lm_dir, "hands_screen.npy"), np.array(seq_hands_screen))
                     
                     # Only save face data if tracking is enabled
                     if ENABLE_FACE_TRACKING:
