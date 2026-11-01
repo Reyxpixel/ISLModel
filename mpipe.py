@@ -14,6 +14,9 @@ FACE_MODEL_PATH = "face_landmarker.task"
 COUNTDOWN_SECONDS = 2.0 
 TARGET_FPS = 30
 ENABLE_FACE_TRACKING = False  
+# Also save each take as a video (video.mp4, the camera frame before mirroring), so landmarks
+# can be re-extracted later with reextract.py if the extraction ever changes.
+SAVE_VIDEO = True
 
 # The physical bone connections for skeleton
 HAND_CONNECTIONS = [
@@ -204,6 +207,7 @@ def main():
                 os.makedirs(lm_raw_dir, exist_ok=True)
 
                 seq_hands, seq_hands_screen, seq_face_coords, seq_face_blend = [], [], [], []
+                video_writer = None
                 
                 hand_txt_path = os.path.join(lm_raw_dir, "hands_raw.txt")
                 face_txt_path = os.path.join(lm_raw_dir, "face_raw.txt")
@@ -220,6 +224,13 @@ def main():
                             if not ret:
                                 capture_successful = False
                                 break
+
+                            if SAVE_VIDEO:
+                                if video_writer is None:
+                                    fh, fw = frame.shape[:2]
+                                    video_writer = cv2.VideoWriter(os.path.join(temp_seq_dir, "video.mp4"),
+                                                                   cv2.VideoWriter_fourcc(*"mp4v"), TARGET_FPS, (fw, fh))
+                                video_writer.write(frame)
 
                             mirrored = cv2.flip(frame, 1)
                             raw_rgb = cv2.cvtColor(mirrored, cv2.COLOR_BGR2RGB)
@@ -294,6 +305,10 @@ def main():
                      print(f"\n[ERROR] Unexpected failure: {e}")
                      capture_successful = False
                      stop_batch = True
+
+                # Close the video file before the folder is renamed or deleted (Windows locks open files)
+                if video_writer is not None:
+                    video_writer.release()
 
                 # --- ATOMIC COMMIT ---
                 if capture_successful:

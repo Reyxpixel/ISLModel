@@ -12,6 +12,7 @@ This part covers sign → text: webcam → MediaPipe hand (and face) landmarks �
 | `train.py` | Trains the BiLSTM and reports test accuracy + a confusion matrix |
 | `mpipe.py` | Records signs from the webcam and saves the landmarks for each take |
 | `include_to_landmarks.py` | Converts the INCLUDE dataset videos into the same format |
+| `reextract.py` | Re-extracts landmarks from the videos `mpipe.py` saves, no re-recording needed |
 | `isl_model/` | Data loader, preprocessing and the model, shared by everything above |
 | `*.task` | MediaPipe's hand and face models (from Google), used by all the scripts |
 
@@ -115,6 +116,13 @@ recording takes one after another (2-second countdown before each) until you pre
   measured relative to the face, so only face-on recordings can be used with `--position`.
 - Make each take long enough to fit the whole sign, and have your hands ready when the countdown
   ends.
+- Each take is also saved as `video.mp4` (`SAVE_VIDEO = True`, about 0.3 to 0.7 MB per take). If the
+  landmark extraction ever changes, re-run it on the saved videos instead of recording again:
+  ```
+  python reextract.py dataset_landmarks_only --out dataset_reextracted
+  ```
+  This always extracts with face tracking on, so a recording with video doesn't need a separate
+  face-on and face-off set: both can come from the same takes.
 - If the script is closed in the middle of a take, delete that word's `seq_temp` folder before
   recording again, otherwise the next recording crashes.
 
