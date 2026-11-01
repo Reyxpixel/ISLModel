@@ -40,6 +40,17 @@ python train.py --data ../dataset_include_landmarks ../dataset_landmarks_only   
 python live_demo.py --model runs/latest/model.pt
 ```
 
+With hand position (needs `hands_screen.npy` + `face_coords.npy`, i.e. recordings made with the
+updated `mpipe.py` and `ENABLE_FACE_TRACKING = True`, or INCLUDE re-converted with
+`include_to_landmarks.py`):
+
+```
+python train.py --data ../dataset_include_positions --position
+```
+
+On the 38 INCLUDE signs, shape only scores 93.7-94.7% on the official test split (3 runs);
+with hand position 93.7-96.8%, and "I" vs "you" stops getting confused.
+
 - `isl_model/data.py` loads any folder laid out as `<word>/seq_NNN/landmarks/hands.npy`. It uses
   `index.csv` splits when present, otherwise a fixed 70/10/20 split per word, so new recordings
   need no code changes.
