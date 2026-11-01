@@ -1,60 +1,129 @@
-readme.md
+# ISLModel
 
-Repo for the development of a Bidirectional ISL Model using BiSTL
+Repo for the development of a Bidirectional ISL Model using BiLSTM.
 
-## Data collection
+This part covers sign → text: webcam → MediaPipe hand (and face) landmarks → BiLSTM classifier.
 
-Hand landmarks are extracted with MediaPipe's hand landmarker. Every take is saved as
-`hands.npy` with shape `(frames, 2, 21, 3)`: 2 hand slots, 21 joints each, x/y/z in metres
-relative to the hand's own centre (world landmarks). This captures hand shape only, not where
-the hand is in the frame. A missing hand is all zeros.
+| File | What it does |
+|---|---|
+| `mpipe.py` | Records signs from the webcam and saves the landmarks for each take |
+| `include_to_landmarks.py` | Converts the INCLUDE dataset videos into the same format |
+| `train.py` | Trains the BiLSTM and reports test accuracy + a confusion matrix |
+| `live_demo.py` | Sign in front of the webcam and see what the model predicts |
+| `isl_model/` | Data loader, preprocessing and the model, shared by training and the demo |
+
+## Quick start: test the live demo
+
+1. **Install** (Python 3.10 or newer, and a webcam):
+   ```
+   pip install -r requirements.txt
+   ```
+2. **Download the two MediaPipe model files** into this folder:
+   ```
+   curl -o hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+   curl -o face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task
+   ```
+3. **Get some data** (see [Getting the data](#getting-the-data)). Data and trained models are not
+   in the repo because they're too big for git.
+4. **Train a model** (a few minutes on a GPU, longer on CPU):
+   ```
+   python train.py --data ../dataset_include_landmarks --out runs/latest
+   ```
+   It prints the test accuracy and saves `model.pt`, `report.txt` (per-sign scores) and
+   `confusion_matrix.png` in `runs/latest/`.
+5. **Run the demo:**
+   ```
+   python live_demo.py --model runs/latest/model.pt
+   ```
+   Press **space**, get your hands ready during the 2-second countdown, then sign once. It shows
+   its top 3 guesses. Press **q** to quit. Do one sign per take, and keep your face and both hands
+   in view.
+
+## Getting the data
+
+Every dataset folder has the same layout, which is what `mpipe.py` writes:
+
+```
+<folder>/<word>/seq_001/landmarks/hands.npy
+<folder>/<word>/seq_002/landmarks/hands.npy
+...
+```
+
+Pass one or more such folders to `train.py --data`. The word comes from the folder name.
+
+- **Team recordings:** in the team Google Drive (ask in the group for the link). Download and unzip
+  it. Each letter folder (`C words`, `E words`, ...) is one dataset folder:
+  ```
+  python train.py --data "../ISL/C words" "../ISL/E words" "../ISL/F words" "../ISL/G words"
+  ```
+- **INCLUDE** (AI4Bharat, CC BY 4.0): download the category zips from
+  [Zenodo](https://zenodo.org/records/4010759) and the train/test split files, then convert:
+  ```
+  python include_to_landmarks.py --src <folder with the zips> --splits <folder with include_train.txt etc.> --out ../dataset_include_positions
+  ```
+  This also saves hand and face positions, so the result works with `--position`. It writes an
+  `index.csv` with INCLUDE's official train/val/test split, which `train.py` uses automatically.
+- **Mixing them** is just listing several folders after `--data`. Folders without an `index.csv`
+  get a fixed 70/10/20 train/val/test split per word.
+
+## Recording new signs
+
+```
+python mpipe.py
+```
+
+Type the word and the take length in seconds, click the camera window and press **s**. It keeps
+recording takes one after another (2-second countdown before each) until you press **q**.
+
+- Set `ENABLE_FACE_TRACKING = True` (top of `mpipe.py`) for the face-on set. Hand position is
+  measured relative to the face, so only face-on recordings can be used with `--position`.
+- Make each take long enough to fit the whole sign, and have your hands ready when the countdown
+  ends.
+- If the script is closed in the middle of a take, delete that word's `seq_temp` folder before
+  recording again, otherwise the next recording crashes.
+
+## Training options
+
+```
+python train.py --data <folders...> [--position] [--out runs/name] [--epochs 200] [--seed 0]
+```
+
+- `--position` also uses where each hand is relative to the face. It needs `hands_screen.npy` and
+  `face_coords.npy` in every take, so use it with INCLUDE converted as above or recordings made
+  with face tracking on.
+- The demo picks up whether a model was trained with `--position` by itself.
+
+## What's saved per take
+
+| File | Shape | Contents |
+|---|---|---|
+| `hands.npy` | (frames, 2, 21, 3) | Hand shape: 21 joints per hand, in metres, relative to the hand itself |
+| `hands_screen.npy` | (frames, 2, 21, 3) | Where each hand is in the frame (0 to 1) |
+| `face_coords.npy` | (frames, 478, 3) | Face points in the frame (0 to 1), face tracking on only |
+| `face_blendshapes.npy` | (frames, 52) | Facial expression scores, face tracking on only |
+
+A hand or face that wasn't detected is saved as all zeros.
 
 **Hand slots are swapped.** `mpipe.py` mirrors the frame before detection, which flips
-MediaPipe's left/right label, so slot 0 (labelled "Right") holds the signer's *left* hand and
-slot 1 the *right* hand. Tested: a right-handed "hello" lands in slot 1. All data here uses this
-same convention, so it is consistent; swap the slots when loading (`hands[:, ::-1]`) if a
-model needs slot 0 to be the right hand.
+MediaPipe's left/right label, so slot 0 holds the signer's *left* hand and slot 1 the *right*.
+All the data uses this same convention, so it's consistent and nothing needs changing.
 
-Setup:
+## Results so far
 
-```
-pip install -r requirements.txt
-curl -o hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
-curl -o face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task
-```
+On the 38 INCLUDE signs (official test split, 95 takes, 3 training runs each):
 
-- `mpipe.py` records takes from the webcam into `dataset_landmarks_only/<word>/seq_NNN/`.
-  Enter the word and take length, press `s` in the camera window to start, `q` to stop.
-- `include_to_landmarks.py` converts the [INCLUDE dataset](https://zenodo.org/records/4010759)
-  (AI4Bharat, CC BY 4.0) zips into the same format, with an `index.csv` of the official splits:
-  `python include_to_landmarks.py --src <zip folder> --splits <split folder>`
+| Model | Test accuracy |
+|---|---|
+| Hand shape only | 93.7%, 94.7%, 94.7% |
+| With hand position | 95.8%, 93.7%, 96.8% |
 
-Model files and landmark data are not committed (see `.gitignore`).
+Hand position fixes "I" vs "you", which differ mainly in where the finger points. Adding the
+team's 20 C to G words (2,400 takes) gives 98.4% overall, but their test takes come from the same
+person as their training takes, so expect lower accuracy on new signers.
 
-## Training and live demo
+## Known limitations
 
-```
-pip install torch scikit-learn matplotlib
-python train.py --data ../dataset_include_landmarks                              # INCLUDE only
-python train.py --data ../dataset_include_landmarks ../dataset_landmarks_only    # add new recordings
-python live_demo.py --model runs/latest/model.pt
-```
-
-With hand position (needs `hands_screen.npy` + `face_coords.npy`, i.e. recordings made with the
-updated `mpipe.py` and `ENABLE_FACE_TRACKING = True`, or INCLUDE re-converted with
-`include_to_landmarks.py`):
-
-```
-python train.py --data ../dataset_include_positions --position
-```
-
-On the 38 INCLUDE signs, shape only scores 93.7-94.7% on the official test split (3 runs);
-with hand position 93.7-96.8%, and "I" vs "you" stops getting confused.
-
-- `isl_model/data.py` loads any folder laid out as `<word>/seq_NNN/landmarks/hands.npy`. It uses
-  `index.csv` splits when present, otherwise a fixed 70/10/20 split per word, so new recordings
-  need no code changes.
-- `isl_model/preprocess.py` turns a take into 32 frames x 128 features (both hands' coordinates
-  plus a hand-present flag). Training and the live demo both use it.
-- `live_demo.py` reuses `mpipe.py`'s `extract_landmarks`, so it needs `hand_landmarker.task` in
-  the folder it runs from. Press space, sign after the countdown, and it shows the top 3 guesses.
+- Each sign has only about 15 INCLUDE takes, so live accuracy on a new person is lower than the
+  test numbers, especially for similar-looking signs (he vs hello, tomorrow vs time).
+- The demo records a fixed 2.5 s take (`--seconds` changes it). Very short signs include some
+  still frames at the end.
