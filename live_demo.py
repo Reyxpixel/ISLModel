@@ -1,6 +1,7 @@
 """Live webcam demo: sign in front of the camera and see what the trained model predicts.
 
-    python live_demo.py --model runs/include_baseline/model.pt
+    python live_demo.py                                     # 38 INCLUDE signs, with hand position
+    python live_demo.py --model models/include_plus_vansh.pt   # 58 signs, hand shape only
 
 Press space, hold your hands ready during the countdown, then sign. After the take, the top 3
 guesses are shown. Press q to quit.
@@ -32,7 +33,7 @@ def put(img, text, y, scale=0.7, color=(255, 255, 255), thick=2):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="runs/include_baseline/model.pt")
+    ap.add_argument("--model", default="models/include_position.pt")
     ap.add_argument("--seconds", type=float, default=2.5, help="length of each take")
     ap.add_argument("--camera", type=int, default=0)
     args = ap.parse_args()

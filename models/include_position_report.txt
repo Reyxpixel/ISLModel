@@ -1,0 +1,44 @@
+                precision    recall  f1-score   support
+
+     afternoon       1.00      1.00      1.00         1
+       alright       1.00      1.00      1.00         4
+       evening       1.00      1.00      1.00         1
+        friday       1.00      1.00      1.00         1
+good_afternoon       1.00      1.00      1.00         6
+  good_evening       1.00      0.86      0.92         7
+  good_morning       0.67      1.00      0.80         4
+    good_night       1.00      0.75      0.86         4
+            he       1.00      1.00      1.00         4
+         hello       1.00      1.00      1.00         4
+          hour       1.00      1.00      1.00         1
+   how_are_you       1.00      1.00      1.00         4
+             i       1.00      1.00      1.00         4
+            it       1.00      1.00      1.00         4
+        minute       1.00      1.00      1.00         1
+        monday       1.00      1.00      1.00         1
+         month       1.00      1.00      1.00         1
+       morning       1.00      1.00      1.00         1
+         night       1.00      1.00      1.00         1
+       pleased       0.80      1.00      0.89         4
+      saturday       1.00      1.00      1.00         1
+        second       1.00      1.00      1.00         2
+           she       1.00      1.00      1.00         4
+        sunday       1.00      1.00      1.00         1
+     thank_you       1.00      1.00      1.00         4
+          they       1.00      1.00      1.00         4
+      thursday       1.00      1.00      1.00         1
+          time       1.00      1.00      1.00         1
+         today       1.00      1.00      1.00         1
+      tomorrow       1.00      1.00      1.00         1
+       tuesday       1.00      1.00      1.00         1
+            we       1.00      1.00      1.00         4
+     wednesday       1.00      1.00      1.00         1
+          week       1.00      1.00      1.00         1
+          year       1.00      1.00      1.00         1
+     yesterday       1.00      1.00      1.00         1
+           you       1.00      1.00      1.00         4
+    you_plural       1.00      0.75      0.86         4
+
+      accuracy                           0.97        95
+     macro avg       0.99      0.98      0.98        95
+  weighted avg       0.98      0.97      0.97        95
