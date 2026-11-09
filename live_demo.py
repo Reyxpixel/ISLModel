@@ -55,8 +55,8 @@ def main():
 
     cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FPS, 30)
-    frames_per_take = int(args.seconds * 30)
     state, t0, take, screens, faces, result, ts = "idle", 0.0, [], [], [], None, 0
+    rec_start = 0.0
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -70,6 +70,7 @@ def main():
             put(display, f"GET READY: {left:.1f}s", 240, 1.5, (0, 165, 255), 4)
             if left <= 0:
                 state, take, screens, faces = "recording", [], [], []
+                rec_start = time.time()
         elif state == "recording":
             rgb = cv2.cvtColor(mirrored, cv2.COLOR_BGR2RGB)
             hand_world, hand_screen, _, _ = extract_landmarks(rgb, ts)
@@ -87,8 +88,11 @@ def main():
                 if x or y:
                     cv2.circle(display, (int(x * w), int(y * h)), 3, (0, 255, 255), -1)
             cv2.circle(display, (30, 30), 12, (0, 0, 255), -1)
-            put(display, f"SIGN NOW ({len(take)}/{frames_per_take})", 38, 0.7, (0, 0, 255))
-            if len(take) >= frames_per_take:
+            # Each take lasts --seconds of real time. A dim room makes the webcam drop to fewer
+            # frames per second; counting frames instead would make takes drag on in the dark.
+            elapsed = time.time() - rec_start
+            put(display, f"SIGN NOW ({max(0.0, args.seconds - elapsed):.1f}s)", 38, 0.7, (0, 0, 255))
+            if elapsed >= args.seconds and len(take) >= 2:
                 hands = np.array(take, dtype=np.float32)
                 if np.all(hands == 0):
                     result = [("no hands detected", 0.0)]
