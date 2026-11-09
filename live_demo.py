@@ -1,6 +1,6 @@
 """Live webcam demo: sign in front of the camera and see what the trained model predicts.
 
-    python live_demo.py                                     # 38 INCLUDE signs, with hand position
+    python live_demo.py                                     # 91 signs, with hand position
     python live_demo.py --model models/include_plus_vansh.pt   # 58 signs, hand shape only
 
 Press space, hold your hands ready during the countdown, then sign. After the take, the top 3

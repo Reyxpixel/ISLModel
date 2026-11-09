@@ -1,44 +1,97 @@
                 precision    recall  f1-score   support
 
+         adult       1.00      1.00      1.00         4
      afternoon       1.00      1.00      1.00         1
        alright       1.00      1.00      1.00         4
+        animal       1.00      1.00      1.00         4
+          baby       1.00      0.75      0.86         4
+          bird       1.00      1.00      1.00         4
+         black       0.80      1.00      0.89         4
+          blue       1.00      1.00      1.00         4
+           boy       1.00      1.00      1.00         4
+       brother       1.00      1.00      1.00         4
+         brown       1.00      0.75      0.86         4
+           cat       1.00      1.00      1.00         4
+         child       1.00      1.00      1.00         4
+        colour       0.80      1.00      0.89         4
+           cow       1.00      1.00      1.00         4
+         crowd       1.00      1.00      1.00         4
+      daughter       0.80      1.00      0.89         4
+           dog       1.00      0.75      0.86         4
        evening       1.00      1.00      1.00         1
+        family       1.00      1.00      1.00         3
+        father       1.00      1.00      1.00         4
+          fish       1.00      1.00      1.00         4
         friday       1.00      1.00      1.00         1
+        friend       1.00      1.00      1.00         4
+          girl       1.00      1.00      1.00         4
 good_afternoon       1.00      1.00      1.00         6
   good_evening       1.00      0.86      0.92         7
   good_morning       0.67      1.00      0.80         4
     good_night       1.00      0.75      0.86         4
+   grandfather       1.00      1.00      1.00         3
+   grandmother       1.00      1.00      1.00         3
+         green       1.00      1.00      1.00         4
+          grey       1.00      1.00      1.00         4
+        hammer       1.00      1.00      1.00        24
+  handkerchief       1.00      1.00      1.00        24
             he       1.00      1.00      1.00         4
-         hello       1.00      1.00      1.00         4
+         hello       1.00      1.00      1.00         6
+           hen       1.00      0.96      0.98        24
+          hole       1.00      1.00      1.00        24
+         horse       1.00      0.96      0.98        28
           hour       1.00      1.00      1.00         1
-   how_are_you       1.00      1.00      1.00         4
-             i       1.00      1.00      1.00         4
-            it       1.00      1.00      1.00         4
-        minute       1.00      1.00      1.00         1
-        monday       1.00      1.00      1.00         1
+   how_are_you       1.00      1.00      1.00         6
+       husband       0.75      0.75      0.75         4
+             i       1.00      0.83      0.91         6
+            in       0.92      1.00      0.96        24
+    individual       0.96      1.00      0.98        24
+  introduction       1.00      1.00      1.00        24
+          iron       1.00      1.00      1.00        24
+            it       1.00      1.00      1.00        28
+          king       1.00      1.00      1.00         4
+           man       1.00      1.00      1.00         4
+        minute       0.50      1.00      0.67         1
+        monday       0.50      1.00      0.67         1
          month       1.00      1.00      1.00         1
        morning       1.00      1.00      1.00         1
+        mother       0.80      1.00      0.89         4
+         mouse       1.00      1.00      1.00         4
+     neighbour       1.00      1.00      1.00         4
          night       1.00      1.00      1.00         1
+        orange       1.00      1.00      1.00         4
+        parent       1.00      1.00      1.00         4
+          pink       1.00      1.00      1.00         4
+        player       1.00      1.00      1.00         4
        pleased       0.80      1.00      0.89         4
+     president       1.00      1.00      1.00         4
+         queen       1.00      1.00      1.00         4
+           red       1.00      1.00      1.00         4
       saturday       1.00      1.00      1.00         1
         second       1.00      1.00      1.00         2
-           she       1.00      1.00      1.00         4
+           she       1.00      1.00      1.00         5
+        sister       1.00      0.50      0.67         4
+           son       0.75      0.75      0.75         4
         sunday       1.00      1.00      1.00         1
-     thank_you       1.00      1.00      1.00         4
-          they       1.00      1.00      1.00         4
+     thank_you       1.00      1.00      1.00         5
+          they       1.00      1.00      1.00         7
       thursday       1.00      1.00      1.00         1
-          time       1.00      1.00      1.00         1
+          time       0.50      1.00      0.67         1
          today       1.00      1.00      1.00         1
       tomorrow       1.00      1.00      1.00         1
        tuesday       1.00      1.00      1.00         1
-            we       1.00      1.00      1.00         4
+            we       1.00      1.00      1.00         6
      wednesday       1.00      1.00      1.00         1
           week       1.00      1.00      1.00         1
+         white       1.00      1.00      1.00         4
+          wife       1.00      0.75      0.86         4
+         woman       1.00      0.75      0.86         4
           year       1.00      1.00      1.00         1
+        yellow       1.00      1.00      1.00         4
      yesterday       1.00      1.00      1.00         1
-           you       1.00      1.00      1.00         4
+           you       1.00      1.00      1.00         5
     you_plural       1.00      0.75      0.86         4
 
-      accuracy                           0.97        95
-     macro avg       0.99      0.98      0.98        95
-  weighted avg       0.98      0.97      0.97        95
+      accuracy                           0.97       526
+     macro avg       0.96      0.97      0.96       526
+  weighted avg       0.98      0.97      0.97       526

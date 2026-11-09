@@ -28,11 +28,11 @@ python live_demo.py
 Press **space**, get your hands ready during the 2-second countdown, then sign once. It shows its
 top 3 guesses. Press **q** to quit. Do one sign per take, and keep your face and both hands in view.
 
-It knows these 38 signs: afternoon, alright, evening, friday, good afternoon, good evening,
-good morning, good night, he, hello, hour, how are you, i, it, minute, monday, month, morning,
-night, pleased, saturday, second, she, sunday, thank you, they, thursday, time, today, tomorrow,
-tuesday, we, wednesday, week, year, yesterday, you, you (plural). Reliable ones to start with:
-hello, thank you, we, how are you. Reference videos for each sign are in the INCLUDE dataset.
+It knows 91 signs: INCLUDE's greetings, pronouns, days and time, animals, people/family and
+colours, plus the team's 10 H and I words (hammer, handkerchief, hen, hole, horse, in, individual,
+introduction, iron, it). The full list is in `models/include_position_report.txt`. Reliable ones to
+start with: hello, thank you, we, how are you. Reference videos for each sign are in the INCLUDE
+dataset.
 
 To try the model that also knows the team's 20 C to G words (cabbage, cake, chew, cone,
 confident, egg, enemy, eraser, erect, escape, face, father, fear, few, fill, gas stove, ghost,
@@ -46,7 +46,8 @@ python live_demo.py --model models/include_plus_vansh.pt
 
 | Model | Signs | Uses | Test accuracy |
 |---|---|---|---|
-| `models/include_position.pt` (default) | 38 INCLUDE signs | hand shape + hand position relative to the face | 96.8% (92/95) |
+| `models/include_position.pt` (default) | 91: INCLUDE greetings, pronouns, days/time, animals, people, colours + team H/I words | hand shape + hand position relative to the face | 97.1% (511/526) |
+| `models/include_38_position.pt` | 38 INCLUDE signs | hand shape + hand position | 96.8% (92/95) |
 | `models/include_plus_vansh.pt` | 38 INCLUDE + 20 team words | hand shape only | 98.4% (566/575) |
 
 Each has a confusion matrix (`*_confusion.png`) and per-sign scores (`*_report.txt`) next to it.
