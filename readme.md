@@ -46,7 +46,8 @@ python live_demo.py --model models/include_plus_vansh.pt
 
 | Model | Signs | Uses | Test accuracy |
 |---|---|---|---|
-| `models/include_position.pt` (default) | 91: INCLUDE greetings, pronouns, days/time, animals, people, colours + team H/I words | hand shape + hand position relative to the face | 97.1% (511/526) |
+| `models/include_position.pt` (default) | 91: INCLUDE greetings, pronouns, days/time, animals, people, colours + team H/I words | hand shape + hand position relative to the face | 96.4% (581/603) |
+| `models/include_91_before_webcam.pt` | same 91 signs, without mmkay's webcam takes | hand shape + hand position | 97.1% (511/526) |
 | `models/include_38_position.pt` | 38 INCLUDE signs | hand shape + hand position | 96.8% (92/95) |
 | `models/include_plus_vansh.pt` | 38 INCLUDE + 20 team words | hand shape only | 98.4% (566/575) |
 
