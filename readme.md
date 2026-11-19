@@ -13,6 +13,7 @@ This part covers sign → text: webcam → MediaPipe hand (and face) landmarks �
 | `mpipe.py` | Records signs from the webcam and saves the landmarks for each take |
 | `include_to_landmarks.py` | Converts the INCLUDE dataset videos into the same format |
 | `reextract.py` | Re-extracts landmarks from the videos `mpipe.py` saves, no re-recording needed |
+| `mudra_bubbles/` | Mudra Bubbles: a sign-the-bubble game that saves every take as training data ([its README](mudra_bubbles/README.md)) |
 | `isl_model/` | Data loader, preprocessing and the model, shared by everything above |
 | `*.task` | MediaPipe's hand and face models (from Google), used by all the scripts |
 
@@ -127,6 +128,18 @@ recording takes one after another (2-second countdown before each) until you pre
   face-on and face-off set: both can come from the same takes.
 - If the script is closed in the middle of a take, delete that word's `seq_temp` folder before
   recording again, otherwise the next recording crashes.
+
+## Recording by playing a game
+
+[Mudra Bubbles](mudra_bubbles/README.md) is a game where you sign the glowing word bubble and it pops
+if the model recognises it. Each take is saved in the same format as `mpipe.py` (landmarks, hand
+position, face and video), so playing it is data collection, and practice mode records new words the
+model doesn't know yet.
+
+```
+cd mudra_bubbles
+python mudra_bubbles.py --player <name>
+```
 
 ## Training options
 

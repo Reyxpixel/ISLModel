@@ -7,3 +7,7 @@ __pycache__/
 
 # Training outputs
 runs/
+
+# Mudra Bubbles recordings (share on Drive)
+mudra_bubbles/game_data/
+mudra_bubbles/game_data_rejected/
