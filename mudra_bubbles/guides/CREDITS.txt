@@ -41,3 +41,4 @@ yesterday: seq_009 train hands 43/43 frames 0-43 (1.7s) 640x360@25 0.19MB  src D
 you: seq_001 train hands 46/46 frames 0-46 (1.8s) 640x360@25 0.24MB  src Pronouns/41. you/MVI_0015.MOV
 you_plural: seq_002 train hands 84/84 frames 0-84 (3.4s) 640x360@25 0.63MB  src Pronouns/46. you (plural)/MVI_0022.MOV
 
+hammer, handkerchief, hen, hole, horse, in, individual, introduction, iron: team recordings by Vansh Arya (ISL BTP project).

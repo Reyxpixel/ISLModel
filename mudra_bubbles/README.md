@@ -42,8 +42,9 @@ panel, mirrored so it matches your own camera view. Press space to start signing
 ready, or h to watch it again. `--no-guide` turns the automatic clip off.
 
 The clips are in `guides/<word>.mp4`: 38 INCLUDE signs (AI4Bharat, CC BY 4.0, credit and source of
-each clip in `guides/CREDITS.txt`). Drop in your own `guides/<word>.mp4` for any other word. Words
-without a clip still play, just without the video.
+each clip in `guides/CREDITS.txt`) and 9 of the team's words recorded by Vansh (hammer, handkerchief,
+hen, hole, horse, in, individual, introduction, iron). Drop in your own `guides/<word>.mp4` for any
+other word. Words without a clip still play, just without the video.
 
 ## Words
 
