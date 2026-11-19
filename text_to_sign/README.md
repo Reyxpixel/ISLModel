@@ -33,7 +33,8 @@ python -m venv --system-site-packages .venv
 ```
 
 The webcam side loads `mpipe.py`, `isl_model/` and a model from the repo folder above this one.
-It uses `runs/all_position_big/model.pt` if it's there, otherwise `models/include_position.pt`.
+It uses `runs/all_position_big/model.pt` if it's there (our 91-sign model; `runs/` isn't in the repo),
+otherwise `models/include_position.pt`.
 
 ## How the signer works
 
@@ -48,9 +49,10 @@ It uses `runs/all_position_big/model.pt` if it's there, otherwise `models/includ
 | `signs.npz` | The signer's vocabulary: 91 signs from our recordings (INCLUDE + our webcam takes), as hand landmarks only |
 | `test_signer_app.py` | Opens the app without the webcam, types a few sentences and saves screenshots |
 
-Kunal's words in `words_kunal_original.data` (21 entries, 19 real words plus two test entries) and his letters in `alphabets.data` are used for
-anything `signs.npz` doesn't have. His alphabet is 2D only, so some letters look rough, and
-H, S, W and Y have no shape yet (the caption names the letter).
+Kunal's 19 words in `words_kunal_original.data` and his letters in `alphabets.data` are used for
+anything `signs.npz` doesn't have. His alphabet is 2D only (no depth), so the 3D signer has to
+guess which way each palm faces, and some letters (G, for example) come out wrong until we record
+the alphabet ourselves. H, S, W and Y have no shape yet (the caption names the letter).
 
 To rebuild `signs.npz` after recording more takes (each take needs `hands_screen.npy`, and
 ideally `hands.npy` and `face_coords.npy`):
