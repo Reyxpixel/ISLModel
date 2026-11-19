@@ -13,6 +13,7 @@ This part covers sign → text: webcam → MediaPipe hand (and face) landmarks �
 | `mpipe.py` | Records signs from the webcam and saves the landmarks for each take |
 | `include_to_landmarks.py` | Converts the INCLUDE dataset videos into the same format |
 | `reextract.py` | Re-extracts landmarks from the videos `mpipe.py` saves, no re-recording needed |
+| `web/` | The model as ONNX + a JavaScript version of the preprocessing, to run sign → text in a browser ([its README](web/README.md)) |
 | `mudra_bubbles/` | Mudra Bubbles: a sign-the-bubble game that saves every take as training data ([its README](mudra_bubbles/README.md)) |
 | `isl_model/` | Data loader, preprocessing and the model, shared by everything above |
 | `*.task` | MediaPipe's hand and face models (from Google), used by all the scripts |
