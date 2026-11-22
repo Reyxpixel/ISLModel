@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { X, ArrowRight, CheckCircle2, Sparkles, BookOpen, RotateCcw, Eye } from 'lucide-react';
 import { CameraFeed } from './CameraFeed';
@@ -24,6 +24,7 @@ export const LearnMode: React.FC<LearnModeProps> = ({
 }) => {
   const [step, setStep] = useState<'study' | 'practice' | 'complete'>('study');
   const [hasSucceeded, setHasSucceeded] = useState<boolean>(false);
+  const rewardedRef = useRef(false);
 
   const handleStartPractice = () => {
     sounds.playTap();
@@ -42,6 +43,13 @@ export const LearnMode: React.FC<LearnModeProps> = ({
     });
     onSampleRecorded();
 
+    // Count the sign as done as soon as it is recognised, so leaving through
+    // "Review Sign" or the close button still saves the progress.
+    if (!rewardedRef.current) {
+      rewardedRef.current = true;
+      onComplete(50, 10);
+    }
+
     setTimeout(() => {
       setStep('complete');
       sounds.playFanfare();
@@ -49,7 +57,6 @@ export const LearnMode: React.FC<LearnModeProps> = ({
   };
 
   const handleFinish = () => {
-    onComplete(50, 10);
     onClose();
   };
 

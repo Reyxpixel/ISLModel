@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Flame, Gem, Zap, Volume2, VolumeX, Database, BookOpen, Gamepad2, Map, Wand2, RotateCcw, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Flame, Gem, Zap, Volume2, VolumeX, Database, BookOpen, Gamepad2, Map, Wand2, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { sounds } from '../services/audio';
 
 export type ActiveTab = 'path' | 'arcade' | 'dictionary' | 'dataset';
@@ -16,7 +17,9 @@ interface NavbarProps {
   onOpenDatasetModal: () => void;
   isDemoMode: boolean;
   onToggleDemoMode: () => void;
-  onResetAllData?: () => void;
+  onResetAllData?: () => void | Promise<void>;
+  /** What a reset would wipe, shown in the confirmation window */
+  resetSummary?: { xp: number; gems: number; streak: number; completedSigns: number; recordedTakes: number };
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,15 +35,40 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDemoMode,
   onToggleDemoMode,
   onResetAllData,
+  resetSummary,
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
 
-  const handleConfirmReset = () => {
-    setShowResetConfirm(false);
-    if (onResetAllData) {
-      onResetAllData();
+  const handleConfirmReset = async () => {
+    setIsResetting(true);
+    try {
+      await onResetAllData?.();
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
+      setResetDone(true);
+      setTimeout(() => setResetDone(false), 2500);
     }
   };
+
+  useEffect(() => {
+    if (!showResetConfirm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isResetting) setShowResetConfirm(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showResetConfirm, isResetting]);
+
+  const wipeList = [
+    { label: 'Learning progress', value: `${resetSummary?.completedSigns ?? 0} signs completed, ${resetSummary?.xp ?? 0} XP` },
+    { label: 'Gems and streak', value: `${resetSummary?.gems ?? 0} gems, ${resetSummary?.streak ?? 0}-day streak` },
+    { label: 'Daily quest', value: "Today's quest starts again at 0 / 3" },
+    { label: 'Research Hub', value: `${resetSummary?.recordedTakes ?? 0} recorded takes (video + landmarks)` },
+    { label: 'Demo Mode', value: 'Switched off so you see the fresh start' },
+  ];
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-2 border-slate-200/80 shadow-2xs">
@@ -221,42 +249,76 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Confirmation Modal for Resetting All Data */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 border-2 border-slate-200 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6 text-rose-600" />
+      {/* Confirmation window for resetting all data. Rendered into <body>: the sticky
+          header's backdrop blur would otherwise trap a fixed overlay inside the header. */}
+      {showResetConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] bg-slate-900/55 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !isResetting && setShowResetConfirm(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reset-title"
+              className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-rose-600" />
+                </div>
+                <div>
+                  <h3 id="reset-title" className="font-black text-lg text-slate-900 leading-tight">Reset everything?</h3>
+                  <p className="text-xs font-semibold text-slate-500">This clears the following from this browser and can't be undone.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-lg text-slate-900">Reset All Data & Progress?</h3>
-                <p className="text-xs text-slate-500">This action will clear all stored data</p>
+
+              <ul className="flex flex-col gap-1.5">
+                {wipeList.map((w) => (
+                  <li key={w.label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                    <span className="text-xs font-black text-slate-700">{w.label}</span>
+                    <span className="text-[11px] font-semibold text-slate-500 text-right">{w.value}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {(resetSummary?.recordedTakes ?? 0) > 0 && (
+                <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  Export the dataset from the Research Hub first if you want to keep the recorded takes.
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  disabled={isResetting}
+                  autoFocus
+                  className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:bg-slate-100 font-extrabold text-xs transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmReset}
+                  disabled={isResetting}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5 disabled:opacity-70"
+                >
+                  {isResetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                  <span>{isResetting ? 'Resetting...' : 'Yes, reset everything'}</span>
+                </button>
               </div>
             </div>
+          </div>,
+          document.body,
+        )}
 
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Are you sure you want to reset all current learning progress (XP, streak, gems, completed signs) and wipe all recorded ISL video dataset takes from this browser?
-            </p>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-extrabold text-xs transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmReset}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Yes, Reset Everything</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {resetDone &&
+        createPortal(
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-xl">
+            Everything was reset. Fresh start!
+          </div>,
+          document.body,
+        )}
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t-2 border-slate-200 px-4 py-2 flex justify-around items-center shadow-lg">

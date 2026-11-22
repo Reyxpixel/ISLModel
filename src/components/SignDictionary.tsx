@@ -95,20 +95,20 @@ export const SignDictionary: React.FC<SignDictionaryProps> = ({ onSelectSign }) 
       </div>
 
       {/* Sign Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5">
+      <div className="grid gap-5 grid-cols-[repeat(auto-fill,minmax(230px,1fr))]">
         {filteredSigns.map((sign) => (
           <div
             key={sign.id}
-            className="bg-white rounded-3xl p-5 border-2 border-slate-200/80 shadow-xs hover:border-sky-300 hover:shadow-md transition-all flex flex-col justify-between group"
+            className="min-w-0 overflow-hidden bg-white rounded-3xl p-5 border-2 border-slate-200/80 shadow-xs hover:border-sky-300 hover:shadow-md transition-all flex flex-col justify-between group"
           >
             <div>
               {/* Header row */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="shrink-0 w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                   {sign.iconEmoji}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-1">
+                <div className="min-w-0 flex flex-col items-end gap-1">
+                  <div className="flex flex-wrap items-center justify-end gap-1">
                     {sign.hasGuideVideo && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                         <Video className="w-2.5 h-2.5" /> Video

@@ -9,6 +9,7 @@ interface LeftSidebarProps {
   onTabChange: (tab: ActiveTab) => void;
   recordedSamplesCount: number;
   completedSignsCount: number;
+  questCount: number;
   totalSignsCount: number;
   isMuted: boolean;
   onToggleMute: () => void;
@@ -21,6 +22,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onTabChange,
   recordedSamplesCount,
   completedSignsCount,
+  questCount: realQuestCount,
   totalSignsCount,
   isMuted,
   onToggleMute,
@@ -53,7 +55,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const displayCompletedCount = isDemoMode ? Math.max(12, completedSignsCount) : completedSignsCount;
   const masteryPercent = Math.round((displayCompletedCount / Math.max(1, totalSignsCount)) * 100);
-  const questCount = isDemoMode ? 2 : Math.min(3, completedSignsCount);
+  const questCount = isDemoMode ? 2 : Math.min(3, realQuestCount);
 
   return (
     <aside className="hidden lg:flex flex-col w-72 xl:w-80 h-full justify-between pr-2 shrink-0 select-none overflow-y-auto pb-4 scrollbar-none">
@@ -186,7 +188,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               ? 'Complete at least 3 signs today to ignite your daily streak!'
               : questCount >= 3
               ? 'Awesome work! Daily quest achieved for today!'
-              : 'Keep going! Practice 1 more sign to complete today\'s quest.'}
+              : `Keep going! Practice ${3 - questCount} more sign${3 - questCount === 1 ? '' : 's'} to complete today's quest.`}
           </p>
           <div className="flex items-center justify-between text-[11px] font-black text-amber-900 pt-1">
             <span>Goal: 3 Signs</span>

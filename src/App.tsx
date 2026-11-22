@@ -12,6 +12,13 @@ import { ISL_SIGNS } from './data/islCurriculum';
 import { dataRecorder } from './services/dataRecorder';
 import { sounds } from './services/audio';
 
+// Local calendar day as YYYY-MM-DD (offset in days, e.g. -1 = yesterday)
+function todayKey(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('path');
   const [activeLearnSign, setActiveLearnSign] = useState<ISLSign | null>(null);
@@ -32,25 +39,39 @@ export default function App() {
     });
   };
 
-  // Gamification progress (persisted in localStorage)
+  // Gamification progress (persisted in localStorage). A new learner starts at zero;
+  // Demo Mode adds the placeholder numbers on top (see display values below).
   const [streak, setStreak] = useState<number>(() => {
     const saved = localStorage.getItem('signit_streak');
-    return saved ? parseInt(saved, 10) : 3;
+    const last = localStorage.getItem('signit_last_active');
+    // the streak is only alive if the learner practised today or yesterday
+    if (!saved || (last !== todayKey() && last !== todayKey(-1))) return 0;
+    return parseInt(saved, 10);
   });
 
   const [xp, setXp] = useState<number>(() => {
     const saved = localStorage.getItem('signit_xp');
-    return saved ? parseInt(saved, 10) : 250;
+    return saved ? parseInt(saved, 10) : 0;
   });
 
   const [gems, setGems] = useState<number>(() => {
     const saved = localStorage.getItem('signit_gems');
-    return saved ? parseInt(saved, 10) : 120;
+    return saved ? parseInt(saved, 10) : 0;
   });
 
   const [completedSignIds, setCompletedSignIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('signit_completed_signs');
-    return saved ? JSON.parse(saved) : ['hello'];
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Daily quest: signs practised today (goal 3)
+  const [questCount, setQuestCount] = useState<number>(() => {
+    try {
+      const q = JSON.parse(localStorage.getItem('signit_quest') || 'null');
+      return q && q.date === todayKey() ? q.count : 0;
+    } catch {
+      return 0;
+    }
   });
 
   const [recordedSamplesCount, setRecordedSamplesCount] = useState<number>(0);
@@ -86,6 +107,21 @@ export default function App() {
   const handleSignCompleted = (signId: string, earnedXp: number, earnedGems: number) => {
     handleScoreEarned(earnedXp, earnedGems);
 
+    // daily quest + streak
+    const today = todayKey();
+    const last = localStorage.getItem('signit_last_active');
+    if (last !== today) {
+      const nextStreak = last === todayKey(-1) ? streak + 1 : 1;
+      setStreak(nextStreak);
+      localStorage.setItem('signit_streak', nextStreak.toString());
+      localStorage.setItem('signit_last_active', today);
+    }
+    setQuestCount((prev) => {
+      const next = prev + 1;
+      localStorage.setItem('signit_quest', JSON.stringify({ date: today, count: next }));
+      return next;
+    });
+
     setCompletedSignIds((prev) => {
       if (!prev.includes(signId)) {
         const next = [...prev, signId];
@@ -104,15 +140,20 @@ export default function App() {
     sounds.setMuted(nextState);
   };
 
+  // Wipes everything this browser holds for the learner: progress, quest, streak,
+  // recorded takes (Research Hub) and Demo Mode (so the zeroed numbers show).
   const handleResetAllData = async () => {
-    localStorage.removeItem('signit_streak');
-    localStorage.removeItem('signit_xp');
-    localStorage.removeItem('signit_gems');
-    localStorage.removeItem('signit_completed_signs');
+    ['signit_streak', 'signit_xp', 'signit_gems', 'signit_completed_signs', 'signit_quest', 'signit_last_active']
+      .forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem('signit_demo_mode', 'false');
     setStreak(0);
     setXp(0);
     setGems(0);
     setCompletedSignIds([]);
+    setQuestCount(0);
+    setIsDemoMode(false);
+    setActiveLearnSign(null);
+    setIsDatasetModalOpen(false);
     await dataRecorder.clearAllSamples();
     await refreshSampleCount();
     sounds.playSuccess();
@@ -120,10 +161,10 @@ export default function App() {
 
   const totalSignsCount = Object.keys(ISL_SIGNS).length;
 
-  // Values reflecting Demo Mode state
-  const displayStreak = isDemoMode ? streak : 0;
-  const displayXp = isDemoMode ? xp : 0;
-  const displayGems = isDemoMode ? gems : 0;
+  // Values shown: real progress, plus placeholder numbers while Demo Mode is on
+  const displayStreak = isDemoMode ? Math.max(3, streak) : streak;
+  const displayXp = isDemoMode ? 250 + xp : xp;
+  const displayGems = isDemoMode ? 120 + gems : gems;
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 text-slate-800 overflow-hidden">
@@ -141,6 +182,13 @@ export default function App() {
         isDemoMode={isDemoMode}
         onToggleDemoMode={toggleDemoMode}
         onResetAllData={handleResetAllData}
+        resetSummary={{
+          xp,
+          gems,
+          streak,
+          completedSigns: completedSignIds.length,
+          recordedTakes: recordedSamplesCount,
+        }}
       />
 
       {/* Main 3-Column Layout: Left Sidebar + Center Stream + Right Sidebar */}
@@ -151,6 +199,7 @@ export default function App() {
           onTabChange={setActiveTab}
           recordedSamplesCount={recordedSamplesCount}
           completedSignsCount={completedSignIds.length}
+          questCount={questCount}
           totalSignsCount={totalSignsCount}
           isMuted={isMuted}
           onToggleMute={toggleMute}

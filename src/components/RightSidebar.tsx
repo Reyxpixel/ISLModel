@@ -2,7 +2,7 @@ import React from 'react';
 import { Flame, Trophy, Volume2, ArrowRight, Check, Sparkles, BookOpen, Lightbulb } from 'lucide-react';
 import { ISL_SIGNS } from '../data/islCurriculum';
 import { ISLSign } from '../types/isl';
-import { HandDiagram } from './HandDiagram';
+import { SignVisualizer } from './SignVisualizer';
 import { sounds } from '../services/audio';
 import { speechService } from '../services/speech';
 
@@ -21,25 +21,25 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   recordedSamplesCount,
   isDemoMode = false,
 }) => {
-  // Sign of the Day
-  const featuredSign = ISL_SIGNS.hello || Object.values(ISL_SIGNS)[0];
+  // Mudra of the Day: a different sign each calendar day
+  const allSigns = Object.values(ISL_SIGNS);
+  const now = new Date();
+  const dayNumber = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+  const featuredSign = allSigns[(dayNumber * 37) % allSigns.length] || ISL_SIGNS.hello;
 
-  // 7-day activity days
-  const daysOfWeek = [
-    { day: 'M', completed: isDemoMode },
-    { day: 'T', completed: isDemoMode },
-    { day: 'W', completed: isDemoMode },
-    { day: 'T', completed: false },
-    { day: 'F', completed: false },
-    { day: 'S', completed: false },
-    { day: 'S', completed: false },
-  ];
+  // This week's activity (Mon..Sun): demo shows Mon-Wed, otherwise the last
+  // `streak` days up to today
+  const todayIdx = (now.getDay() + 6) % 7;
+  const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => ({
+    day,
+    completed: isDemoMode ? idx < 3 : idx <= todayIdx && idx > todayIdx - streak,
+  }));
 
   // Demo Leaderboard (populated only when Demo Mode is ON)
   const demoLeaderboard = [
     { rank: 1, name: 'Priya Sharma', xp: 780, avatar: '👩', medal: '🥇' },
     { rank: 2, name: 'Aarav Patel', xp: 620, avatar: '👨', medal: '🥈' },
-    { rank: 3, name: 'You (Learner)', xp: xp || 250, avatar: '🤟', medal: '🥉', isCurrentUser: true },
+    { rank: 3, name: 'You (Learner)', xp, avatar: '🤟', medal: '🥉', isCurrentUser: true },
     { rank: 4, name: 'Sneha Reddy', xp: 390, avatar: '🧕', medal: '4' },
     { rank: 5, name: 'Vikram Singh', xp: 310, avatar: '👳', medal: '5' },
   ];
@@ -53,12 +53,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     }, 900);
   };
 
-  const displayStreak = isDemoMode ? streak : 0;
+  const displayStreak = streak;
 
   return (
     <aside className="hidden xl:flex flex-col w-84 2xl:w-92 h-full gap-4 pl-2 shrink-0 overflow-y-auto pb-4 select-none scrollbar-none">
       {/* 1. Daily Streak Card */}
-      <div className="bg-white rounded-3xl p-4.5 border-2 border-slate-200/90 shadow-2xs flex flex-col gap-3">
+      <div className="shrink-0 bg-white rounded-3xl p-4.5 border-2 border-slate-200/90 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${
@@ -106,7 +106,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
 
       {/* 2. ISL Sign of the Day Showcase (Mudra of the Day) */}
-      <div className="bg-gradient-to-br from-sky-50/70 via-white to-blue-50/60 rounded-3xl p-4.5 border-2 border-sky-200 shadow-2xs flex flex-col gap-3 relative overflow-hidden">
+      <div className="shrink-0 bg-gradient-to-br from-sky-50/70 via-white to-blue-50/60 rounded-3xl p-4 border-2 border-sky-200 shadow-2xs flex flex-col gap-3 relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 bg-sky-100/90 px-2.5 py-0.5 rounded-md border border-sky-300">
             Mudra of the Day
@@ -121,25 +121,24 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </button>
         </div>
 
-        {/* Vector SVG Diagram & Description */}
-        <div className="flex items-center gap-3">
-          <div className="w-22 h-22 bg-white rounded-2xl border-2 border-sky-100 flex items-center justify-center p-1 shadow-inner shrink-0 relative">
-            <HandDiagram signId={featuredSign.id} className="w-full h-full" />
-            {featuredSign.hasGuideVideo && (
-              <span className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white shadow-xs" title="Video Guide Available">
-                HD
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-black text-sm text-slate-800 leading-tight">
-              {featuredSign.name}
+        {/* Looping 3D preview of the sign + name */}
+        <SignVisualizer sign={featuredSign} compact className="rounded-2xl! border-sky-100" />
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h4 className="font-black text-base text-slate-800 leading-tight flex items-center gap-1.5">
+              <span>{featuredSign.iconEmoji}</span>
+              <span className="truncate">{featuredSign.name}</span>
+              <span className="text-xs font-bold text-sky-600">{featuredSign.hindiName}</span>
             </h4>
-            <p className="text-xs font-bold text-sky-600 mb-1">{featuredSign.hindiName}</p>
-            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-              {featuredSign.handshapeDescription}
+            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mt-0.5">
+              {featuredSign.movementDescription}
             </p>
           </div>
+          {featuredSign.hasGuideVideo && (
+            <span className="shrink-0 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300" title="A video guide is available in the lesson">
+              Video
+            </span>
+          )}
         </div>
 
         <button
@@ -155,7 +154,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
 
       {/* 3. Community Weekly League */}
-      <div className="bg-white rounded-3xl p-5 border-2 border-slate-200/90 shadow-2xs flex flex-col gap-3.5">
+      <div className="shrink-0 bg-white rounded-3xl p-5 border-2 border-slate-200/90 shadow-2xs flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-500" />
@@ -200,7 +199,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
 
       {/* 4. ISL Grammar & Signing Tip Widget */}
-      <div className="bg-sky-50/50 rounded-3xl p-4.5 border-2 border-sky-100/90 shadow-2xs flex flex-col gap-2">
+      <div className="shrink-0 bg-sky-50/50 rounded-3xl p-4.5 border-2 border-sky-100/90 shadow-2xs flex flex-col gap-2">
         <div className="flex items-center gap-1.5 text-xs font-black text-sky-800">
           <Lightbulb className="w-4 h-4 text-sky-500" />
           <span>ISL Signing Pro-Tip</span>

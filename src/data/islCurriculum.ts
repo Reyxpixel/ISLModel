@@ -1,14 +1,14 @@
 import { ISLSign, LevelLesson, SignCategory } from '../types/isl';
 
 // ---------- Guide video availability map ----------
+// Clips in public/guides/ are from the INCLUDE dataset (AI4Bharat, CC BY 4.0; see
+// public/guides/CREDITS.txt). Signs without a clip use the 3D landmark signer.
 const GUIDE_VIDEOS = new Set([
   'afternoon','alright','evening','friday','good_afternoon','good_evening',
-  'good_morning','good_night','hammer','handkerchief','he','hello','hen',
-  'hole','horse','hour','how_are_you','i','in','individual','introduction',
-  'iron','it','minute','monday','month','morning','night','pleased',
-  'saturday','second','she','sunday','thank_you','they','thursday','time',
-  'today','tomorrow','tuesday','we','wednesday','week','year','yesterday',
-  'you','you_plural',
+  'good_morning','good_night','he','hello','hour','how_are_you','i','it',
+  'minute','monday','month','morning','night','pleased','saturday','second',
+  'she','sunday','thank_you','they','thursday','time','today','tomorrow',
+  'tuesday','we','wednesday','week','year','yesterday','you','you_plural',
 ]);
 
 // ---------- Helper ----------

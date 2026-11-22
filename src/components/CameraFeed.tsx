@@ -33,7 +33,9 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
   // Recognizer state machine
-  const [recogState, setRecogState] = useState<RecognizerState>('unloaded');
+  // The recognizer is shared by every camera view, so start from its current state:
+  // once the model is loaded it never re-announces 'ready' to a newly opened view.
+  const [recogState, setRecogState] = useState<RecognizerState>(() => islRecognizer.getState());
   const [timerText, setTimerText] = useState<string>('');
   const [lastResult, setLastResult] = useState<RecognitionResult | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -46,8 +48,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       setIsInitializing(true);
       setModelStatus('Loading 91-Sign BiLSTM Neural Network...');
 
-      // 1. Load ONNX model
+      // 1. Load ONNX model (already loaded if another view used it; then just clear
+      // any take a previous view left half-finished)
       await islRecognizer.load();
+      islRecognizer.reset();
+      if (isMounted) setRecogState(islRecognizer.getState());
 
       // 2. Load MediaPipe vision models
       setModelStatus('Loading MediaPipe Hand & Face Models...');

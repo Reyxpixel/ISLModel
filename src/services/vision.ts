@@ -31,6 +31,13 @@ export type DetectionCallback = (output: FrameDetectionOutput) => void;
 
 const zeros = (n: number): number[][] => Array.from({ length: n }, () => [0, 0, 0]);
 
+
+// Demo-mode framing for the animation files (see generateSimulatedPose)
+const SIM_SCENE_PER_FACE = 1.25;
+const SIM_FACE_H = 0.2;   // face height as a fraction of the picture height
+const SIM_FACE_Y = 0.27;  // picture y of the middle of the face
+const SIM_ASPECT = 4 / 3;
+
 class VisionService {
   private handLandmarker: HandLandmarker | null = null;
   private faceLandmarker: FaceLandmarker | null = null;
@@ -44,6 +51,7 @@ class VisionService {
   private simulationActive: boolean = false;
   private simulatedSignId: string = 'hello';
   private simFrames: number[][][][] | null = null; // [N][2][21][3]
+  private simPresent: boolean[][] | null = null; // [N][2]; absent hands still hold placeholder points
   private simFrameIndex: number = 0;
   private lastSimFetch: string = '';
   private lastTs: number = 0;
@@ -75,6 +83,7 @@ class VisionService {
       if (res.ok) {
         const data = await res.json();
         this.simFrames = data.frames;
+        this.simPresent = data.present ?? null;
         this.simFrameIndex = 0;
       }
     } catch {
@@ -351,6 +360,35 @@ class VisionService {
       for (let y = 0; y < canvas.height; y += 30) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
+
+      // Signer silhouette, in the same framing the simulated hands use
+      const fh = SIM_FACE_H * canvas.height;
+      const cx = canvas.width / 2;
+      const cy = SIM_FACE_Y * canvas.height;
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(51, 65, 85, 0.45)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 0.12 * fh, 0.4 * fh, 0.66 * fh, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 0.2 * fh, cy + 0.45 * fh);
+      ctx.lineTo(cx - 0.2 * fh, cy + 0.8 * fh);
+      ctx.quadraticCurveTo(cx - 0.55 * fh, cy + 0.85 * fh, cx - 1.25 * fh, cy + 1.1 * fh);
+      ctx.quadraticCurveTo(cx - 1.45 * fh, cy + 1.25 * fh, cx - 1.45 * fh, cy + 1.6 * fh);
+      ctx.lineTo(cx - 1.35 * fh, canvas.height + 5);
+      ctx.lineTo(cx + 1.35 * fh, canvas.height + 5);
+      ctx.lineTo(cx + 1.45 * fh, cy + 1.6 * fh);
+      ctx.quadraticCurveTo(cx + 1.45 * fh, cy + 1.25 * fh, cx + 1.25 * fh, cy + 1.1 * fh);
+      ctx.quadraticCurveTo(cx + 0.55 * fh, cy + 0.85 * fh, cx + 0.2 * fh, cy + 0.8 * fh);
+      ctx.lineTo(cx + 0.2 * fh, cy + 0.45 * fh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Render Hands
@@ -433,25 +471,36 @@ class VisionService {
     const displayHands: HandLandmarkData[] = [];
 
     if (this.simFrames && this.simFrames.length > 0) {
-      const frameData = this.simFrames[this.simFrameIndex % this.simFrames.length];
+      const fi = this.simFrameIndex % this.simFrames.length;
+      const frameData = this.simFrames[fi];
+      const presentRow = this.simPresent?.[fi];
       this.simFrameIndex = (this.simFrameIndex + 1) % this.simFrames.length;
 
-      // Slot 0 = Right, Slot 1 = Left
+      // The animation files are in face-anchored scene units (origin = middle of the
+      // face, y up, SIM_SCENE_PER_FACE units per face height; slot 0 = signer's left
+      // hand, slot 1 = right). Place them in a webcam-like picture: face centred at
+      // (0.5, SIM_FACE_Y), one face height = SIM_FACE_H of the picture height.
       for (let s = 0; s < 2; s++) {
         const handPts = frameData[s];
-        const isPresent = handPts && handPts.some((p) => p[0] !== 0 || p[1] !== 0 || p[2] !== 0);
+        const isPresent = presentRow
+          ? presentRow[s]
+          : handPts && handPts.some((p) => p[0] !== 0 || p[1] !== 0 || p[2] !== 0);
 
         if (isPresent) {
-          rawFrame.hands[s] = handPts;
-          // Approximate screen coords by mapping (-0.2..0.2) to (0.3..0.7)
+          const k = SIM_FACE_H / SIM_SCENE_PER_FACE;
           rawFrame.handsScreen[s] = handPts.map((p) => [
-            Math.max(0.05, Math.min(0.95, 0.5 + p[0] * 1.5)),
-            Math.max(0.05, Math.min(0.95, 0.5 + p[1] * 1.5)),
-            p[2],
+            0.5 + (p[0] * k) / SIM_ASPECT,
+            SIM_FACE_Y - p[1] * k,
+            p[2] * k,
           ]);
+          // rough metric hand around its palm (1 face height ~ 0.2 m), y down like MediaPipe
+          const palm = [0, 5, 9, 13, 17].map((i) => handPts[i]);
+          const c = [0, 1, 2].map((d) => palm.reduce((a, q) => a + q[d], 0) / palm.length);
+          const m = 0.2 / SIM_SCENE_PER_FACE;
+          rawFrame.hands[s] = handPts.map((p) => [(p[0] - c[0]) * m, -(p[1] - c[1]) * m, (p[2] - c[2]) * m]);
 
           displayHands.push({
-            handedness: s === 0 ? 'Right' : 'Left',
+            handedness: s === 1 ? 'Right' : 'Left',
             score: 0.98,
             landmarks: rawFrame.handsScreen[s].map((p) => ({ x: p[0], y: p[1], z: p[2] })),
           });
