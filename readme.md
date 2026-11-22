@@ -1,189 +1,73 @@
-# ISLModel
+# 🤟 SignIt — Interactive Indian Sign Language (ISL) Game & AI Dataset Collector
 
-Repo for the development of a Bidirectional ISL Model using BiLSTM.
+> A modern, clean, Duolingo-inspired web app to teach **Indian Sign Language (ISL)** interactively through games like **SignBurst Arcade** while ethically crowdsourcing synchronized video and 3D landmark data to train computer vision models.
 
-This part covers sign → text: webcam → MediaPipe hand (and face) landmarks → BiLSTM classifier.
+---
 
-| File | What it does |
-|---|---|
-| `live_demo.py` | Sign in front of the webcam and see what the model predicts |
-| `predict.py` | Run a trained model on recorded takes, no webcam needed |
-| `models/` | Two trained models, ready to use, with their results |
-| `train.py` | Trains the BiLSTM and reports test accuracy + a confusion matrix |
-| `mpipe.py` | Records signs from the webcam and saves the landmarks for each take |
-| `include_to_landmarks.py` | Converts the INCLUDE dataset videos into the same format |
-| `reextract.py` | Re-extracts landmarks from the videos `mpipe.py` saves, no re-recording needed |
-| `web/` | The model as ONNX + a JavaScript version of the preprocessing, to run sign → text in a browser ([its README](web/README.md)) |
-| `mudra_bubbles/` | Mudra Bubbles: a sign-the-bubble game that saves every take as training data ([its README](mudra_bubbles/README.md)) |
-| `isl_model/` | Data loader, preprocessing and the model, shared by everything above |
-| `*.task` | MediaPipe's hand and face models (from Google), used by all the scripts |
+## 🌟 Key Highlights
 
-## Quick start: try the live demo
+- **Dual-Purpose Design**:
+  1. **Gamified Education**: Duolingo-style learning path + SignBurst arcade bubble popping game tailored to authentic Indian Sign Language gestures.
+  2. **Model Training & Crowdsourcing**: Captures synchronized webcam video (`.webm`) and Google MediaPipe 3D Landmark sequences (`.json`) with every sign attempt.
+- **Aesthetic**: Minimalist, clean white canvas (`#ffffff`, `#f8fafc`) with cheerful light-blue & sky-blue accents (`#0ea5e9`, `#38bdf8`), 3D pressable buttons, smooth animations, and zero-latency Web Audio sound synthesizer.
+- **Google Vision Models**: Powered by **Google MediaPipe Hand Landmarker** (21 3D landmarks per hand) and **Face Landmarker** (capturing non-manual facial grammatical cues crucial to ISL).
+- **Demo Mode Control**: Explicit Demo Mode toggle above the camera arena prevents any false positives when the camera is inactive.
+- **Responsive 3-Column Layout**: Left navigation rail, center game arena, and right community leaderboard & daily streak sidebar.
 
-Needs Python 3.10 or newer and a webcam. Run everything from this folder.
+---
 
-```
-pip install -r requirements.txt
-python live_demo.py
-```
+## 🎮 Game Modes
 
-Press **space**, get your hands ready during the 2-second countdown, then sign once. It shows its
-top 3 guesses. Press **q** to quit. Do one sign per take, and keep your face and both hands in view.
+### 1. Duolingo-Style Learn Path (`/path`)
+- **Serpentine Curriculum Path**: Progress through structured units (Greetings, Quick Responses, Daily Needs, Numbers & Alphabets).
+- **Interactive Step Tutor**:
+  - **Study Step**: Visual reference, cultural context (English + Hindi e.g. *Namaste / नमस्ते*, *Water / पानी*), and facial expression guidance.
+  - **Camera Practice Step**: Real-time camera mirror with glowing sky-blue landmark skeleton, live confidence gauge, and 1.2s hold validation.
+  - **Victory Celebration**: Earn XP, Gems, and maintain your daily streak!
 
-It knows 91 signs: INCLUDE's greetings, pronouns, days and time, animals, people/family and
-colours, plus the team's 10 H and I words (hammer, handkerchief, hen, hole, horse, in, individual,
-introduction, iron, it). The full list is in `models/include_position_report.txt`. Reliable ones to
-start with: hello, thank you, we, how are you. Reference videos for each sign are in the INCLUDE
-dataset.
+### 2. SignBurst ISL Arcade (`/arcade`)
+- **Fast-Paced Bubble Popping**:
+  - Buoyant bubbles float across the arena with ISL signs.
+  - Match the hand sign in front of your camera to **BURST** the target bubble!
+  - Rack up combos (2x, 3x, 4x Combo! 🔥), build high scores, and beat the clock.
+- **Instant Audio & Haptic Feedback**: Synthesized marimba pops, success chords, and combo fanfares generated with the Web Audio API.
 
-To try the model that also knows the team's 20 C to G words (cabbage, cake, chew, cone,
-confident, egg, enemy, eraser, erect, escape, face, father, fear, few, fill, gas stove, ghost,
-give, go, grow):
+### 3. Sign Dictionary (`/dictionary`)
+- Searchable visual index of ISL vocabulary filtered by category (Greetings, Basics, Daily Needs, Feelings, Numbers, Alphabet).
+- One-click launch into camera practice for any sign.
 
-```
-python live_demo.py --model models/include_plus_vansh.pt
-```
+---
 
-## The trained models
+## 🔬 AI Research Dataset Hub (`/dataset`)
 
-| Model | Signs | Uses | Test accuracy |
-|---|---|---|---|
-| `models/include_position.pt` (default) | 91: INCLUDE greetings, pronouns, days/time, animals, people, colours + team H/I words | hand shape + hand position relative to the face | 96.4% (581/603) |
-| `models/include_91_before_webcam.pt` | same 91 signs, without mmkay's webcam takes | hand shape + hand position | 97.1% (511/526) |
-| `models/include_38_position.pt` | 38 INCLUDE signs | hand shape + hand position | 96.8% (92/95) |
-| `models/include_plus_vansh.pt` | 38 INCLUDE + 20 team words | hand shape only | 98.4% (566/575) |
+Every practice and SignBurst attempt automatically buffers:
+1. **Video Stream**: High-resolution synchronized clip recorded via `MediaRecorder`.
+2. **Google Landmarker JSON**: 3D coordinate sequences `(x, y, z)` for 21 hand joints + face contour keypoints matching Google's dataset format.
+3. **Local Persistence**: Stored client-side inside browser `IndexedDB` with zero data leakage.
 
-Each has a confusion matrix (`*_confusion.png`) and per-sign scores (`*_report.txt`) next to it.
-Test takes come from the same signers as the training takes, so expect lower accuracy on new
-people.
+### One-Click Dataset Export
+Click **"Dataset"** in the top navigation to:
+- Inspect recorded video clips alongside the raw 3D landmark JSON.
+- Click **"Export Dataset (.ZIP)"** to download a complete training bundle:
+  - `manifest.json`: Full sample index, labels, timestamps, contributor ID.
+  - `dataset_manifest.csv`: Tabular metadata ready for Pandas / PyTorch Dataset.
+  - `landmarks/{sample_id}.json`: 3D landmark frame sequences.
+  - `videos/{sample_id}.webm`: Raw video recordings.
+  - `README.md`: Python ML training starter script.
 
-## Test on recordings without a webcam
+---
 
-```
-python predict.py ../dataset_landmarks_only/hello
-python predict.py "../ISL/E words" --model models/include_plus_vansh.pt
-```
+## 🚀 Getting Started
 
-Point it at a word folder, a folder of word folders, or a single `seq_NNN` take. It prints the
-top guess for each take and how many it got right. Note that the team's recordings were also used
-for training `include_plus_vansh.pt`, so it will score near 100% on them.
+```bash
+# Clone or open workspace
+cd c:\Users\bansa\Desktop\Projects\Signit
 
-## Train your own model
+# Install dependencies (already installed)
+npm install
 
-Get the data first (next section), then:
-
-```
-python train.py --data ../dataset_include_landmarks --out runs/latest
-python live_demo.py --model runs/latest/model.pt
+# Start development server
+npm run dev
 ```
 
-Training takes a few minutes on a GPU, longer on CPU. It prints the test accuracy and saves
-`model.pt`, `report.txt` and `confusion_matrix.png` in the `--out` folder.
-
-## Getting the data
-
-Every dataset folder has the same layout, which is what `mpipe.py` writes:
-
-```
-<folder>/<word>/seq_001/landmarks/hands.npy
-<folder>/<word>/seq_002/landmarks/hands.npy
-...
-```
-
-Pass one or more such folders to `train.py --data`. The word comes from the folder name.
-
-- **Team recordings:** in the team Google Drive (ask in the group for the link). Download and unzip
-  it. Each letter folder (`C words`, `E words`, ...) is one dataset folder:
-  ```
-  python train.py --data "../ISL/C words" "../ISL/E words" "../ISL/F words" "../ISL/G words"
-  ```
-- **INCLUDE** (AI4Bharat, CC BY 4.0): download the category zips from
-  [Zenodo](https://zenodo.org/records/4010759) and the train/test split files, then convert:
-  ```
-  python include_to_landmarks.py --src <folder with the zips> --splits <folder with include_train.txt etc.> --out ../dataset_include_positions
-  ```
-  This also saves hand and face positions, so the result works with `--position`. It writes an
-  `index.csv` with INCLUDE's official train/val/test split, which `train.py` uses automatically.
-- **Mixing them** is just listing several folders after `--data`. Folders without an `index.csv`
-  get a fixed 70/10/20 train/val/test split per word.
-
-## Recording new signs
-
-```
-python mpipe.py
-```
-
-Type the word and the take length in seconds, click the camera window and press **s**. It keeps
-recording takes one after another (2-second countdown before each) until you press **q**.
-
-- Set `ENABLE_FACE_TRACKING = True` (top of `mpipe.py`) for the face-on set. Hand position is
-  measured relative to the face, so only face-on recordings can be used with `--position`.
-- Make each take long enough to fit the whole sign, and have your hands ready when the countdown
-  ends.
-- Each take is also saved as `video.mp4` (`SAVE_VIDEO = True`, about 0.3 to 0.7 MB per take). If the
-  landmark extraction ever changes, re-run it on the saved videos instead of recording again:
-  ```
-  python reextract.py dataset_landmarks_only --out dataset_reextracted
-  ```
-  This always extracts with face tracking on, so a recording with video doesn't need a separate
-  face-on and face-off set: both can come from the same takes.
-- If the script is closed in the middle of a take, delete that word's `seq_temp` folder before
-  recording again, otherwise the next recording crashes.
-
-## Recording by playing a game
-
-[Mudra Bubbles](mudra_bubbles/README.md) is a game where you sign the glowing word bubble and it pops
-if the model recognises it. Each take is saved in the same format as `mpipe.py` (landmarks, hand
-position, face and video), so playing it is data collection, and practice mode records new words the
-model doesn't know yet.
-
-```
-cd mudra_bubbles
-python mudra_bubbles.py --player <name>
-```
-
-## Training options
-
-```
-python train.py --data <folders...> [--position] [--out runs/name] [--epochs 200] [--seed 0]
-```
-
-- `--position` also uses where each hand is relative to the face. It needs `hands_screen.npy` and
-  `face_coords.npy` in every take, so use it with INCLUDE converted as above or recordings made
-  with face tracking on.
-- The demo picks up whether a model was trained with `--position` by itself.
-
-## What's saved per take
-
-| File | Shape | Contents |
-|---|---|---|
-| `hands.npy` | (frames, 2, 21, 3) | Hand shape: 21 joints per hand, in metres, relative to the hand itself |
-| `hands_screen.npy` | (frames, 2, 21, 3) | Where each hand is in the frame (0 to 1) |
-| `face_coords.npy` | (frames, 478, 3) | Face points in the frame (0 to 1), face tracking on only |
-| `face_blendshapes.npy` | (frames, 52) | Facial expression scores, face tracking on only |
-
-A hand or face that wasn't detected is saved as all zeros.
-
-**Hand slots are swapped.** `mpipe.py` mirrors the frame before detection, which flips
-MediaPipe's left/right label, so slot 0 holds the signer's *left* hand and slot 1 the *right*.
-All the data uses this same convention, so it's consistent and nothing needs changing.
-
-## Results so far
-
-On the 38 INCLUDE signs (official test split, 95 takes, 3 training runs each):
-
-| Model | Test accuracy |
-|---|---|
-| Hand shape only | 93.7%, 94.7%, 94.7% |
-| With hand position | 95.8%, 93.7%, 96.8% |
-
-Hand position fixes "I" vs "you", which differ mainly in where the finger points. Adding the
-team's 20 C to G words (2,400 takes) gives 98.4% overall, but their test takes come from the same
-person as their training takes, so expect lower accuracy on new signers.
-
-## Known limitations
-
-- Each sign has only about 15 INCLUDE takes, so live accuracy on a new person is lower than the
-  test numbers, especially for similar-looking signs (he vs hello, tomorrow vs time).
-- The demo records a fixed 2.5 s take (`--seconds` changes it). Very short signs include some
-  still frames at the end.
+Open **`http://localhost:5173`** in your browser!

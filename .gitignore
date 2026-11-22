@@ -1,13 +1,24 @@
-# Recorded and converted landmark data
-dataset_landmarks_only/
-dataset_include_landmarks/
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-__pycache__/
-*.pyc
+node_modules
+dist
+dist-ssr
+*.local
 
-# Training outputs
-runs/
-
-# Mudra Bubbles recordings (share on Drive)
-mudra_bubbles/game_data/
-mudra_bubbles/game_data_rejected/
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
