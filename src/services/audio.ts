@@ -78,6 +78,31 @@ class SoundEffectsService {
     });
   }
 
+  // Gentle "not quite" sound: two soft falling notes rather than a buzzer
+  public playMiss() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    [329.63, 261.63].forEach((freq, i) => { // E4, C4
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime + i * 0.16;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.94, now + 0.22);
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.28);
+    });
+  }
+
   // Combo celebration sound
   public playCombo(comboCount: number) {
     const ctx = this.getAudioContext();

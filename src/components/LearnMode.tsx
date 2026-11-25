@@ -15,6 +15,26 @@ interface LearnModeProps {
   isDemoMode?: boolean;
 }
 
+const StepCard: React.FC<{ n: number; title: string; text: string; amber?: boolean }> = ({ n, title, text, amber }) => (
+  <div
+    className={`border-2 rounded-2xl p-3 flex items-start gap-3 ${
+      amber ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200'
+    }`}
+  >
+    <div
+      className={`w-7 h-7 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
+        amber ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'
+      }`}
+    >
+      {n}
+    </div>
+    <div>
+      <h4 className={`font-bold text-xs ${amber ? 'text-amber-900' : 'text-slate-800'}`}>{title}</h4>
+      <p className={`text-xs mt-0.5 ${amber ? 'text-amber-800' : 'text-slate-600'}`}>{text}</p>
+    </div>
+  </div>
+);
+
 export const LearnMode: React.FC<LearnModeProps> = ({
   sign,
   onClose,
@@ -60,11 +80,26 @@ export const LearnMode: React.FC<LearnModeProps> = ({
     onClose();
   };
 
+  const signSteps = (
+    <div className="flex flex-col gap-2">
+      <StepCard n={1} title="Hand Formation" text={sign.handshapeDescription} />
+      <StepCard n={2} title="Movement & Timing" text={sign.movementDescription} />
+      {sign.facialExpressionNote && (
+        <StepCard n={3} title="Facial Expression (Grammar)" text={sign.facialExpressionNote} amber />
+      )}
+      {sign.culturalNote && (
+        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-3 text-xs text-sky-800">
+          <span className="font-bold">Cultural Note:</span> {sign.culturalNote}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full border-4 border-sky-300 shadow-2xl overflow-hidden flex flex-col my-auto animate-in zoom-in-95 duration-200">
+      <div className={`bg-white rounded-3xl ${step === 'complete' ? 'max-w-2xl' : 'max-w-5xl'} w-full border-4 border-sky-300 shadow-2xl overflow-hidden flex flex-col my-auto animate-in zoom-in-95 duration-200`}>
         {/* Top Header */}
-        <div className="bg-slate-50 px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="bg-slate-50 px-5 py-2.5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-3xl">{sign.iconEmoji}</span>
             <div>
@@ -87,102 +122,62 @@ export const LearnMode: React.FC<LearnModeProps> = ({
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div className="p-5 sm:p-6 flex-1 overflow-y-auto max-h-[calc(90vh-120px)]">
+        {/* Modal Content: everything fits on one screen from tablet width up */}
+        <div className="p-4 sm:p-5 flex-1 overflow-y-auto max-h-[calc(100dvh-110px)]">
           {step === 'study' && (
-            <div className="flex flex-col gap-5">
+            <div className="learn-split">
               {/* Reference Video or 3D Landmark Signer */}
-              <SignVisualizer sign={sign} />
-
-              {/* Instructions List */}
-              <div className="space-y-3">
-                <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-black text-xs flex items-center justify-center shrink-0">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800">Hand Formation</h4>
-                    <p className="text-xs text-slate-600 mt-0.5">{sign.handshapeDescription}</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-black text-xs flex items-center justify-center shrink-0">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800">Movement & Timing</h4>
-                    <p className="text-xs text-slate-600 mt-0.5">{sign.movementDescription}</p>
-                  </div>
-                </div>
-
-                {sign.facialExpressionNote && (
-                  <div className="bg-amber-50/70 border-2 border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">
-                      3
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-amber-900">Facial Expression (Grammar)</h4>
-                      <p className="text-xs text-amber-800 mt-0.5">{sign.facialExpressionNote}</p>
-                    </div>
-                  </div>
-                )}
-
-                {sign.culturalNote && (
-                  <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-3 text-xs text-sky-800">
-                    <span className="font-bold">Cultural Note:</span> {sign.culturalNote}
-                  </div>
-                )}
+              <div className="learn-media learn-media-study">
+                <SignVisualizer sign={sign} />
               </div>
 
-              {/* Action Button */}
-              <button
-                onClick={handleStartPractice}
-                className="btn-duo-primary py-3.5 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg active:scale-95"
-              >
-                <span>Practice with Camera</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+              <div className="learn-side">
+                {signSteps}
+                <button
+                  onClick={handleStartPractice}
+                  className="learn-cta btn-duo-primary py-3.5 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                >
+                  <span>Practice with Camera</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
 
           {step === 'practice' && (
-            <div className="flex flex-col gap-4">
-              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3 flex items-center justify-between text-xs">
-                <span className="font-bold text-sky-800 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-sky-500" />
-                  Perform the "{sign.name}" sign in front of the camera
-                </span>
-                <span className="text-slate-500 font-semibold">{sign.handsCount === 1 ? '1 Hand' : '2 Hands'}</span>
-              </div>
-
-              {/* Camera Feed with BiLSTM model */}
-              <CameraFeed
-                targetGesture={sign.gestureTarget}
-                signName={sign.name}
-                hindiName={sign.hindiName}
-                signId={sign.id}
-                onSignRecognized={handleSignRecognized}
-                isRecordingDataset={true}
-                isDemoMode={isDemoMode}
-              />
-
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  onClick={() => setStep('study')}
-                  className="btn-duo-secondary px-4 py-2 rounded-xl text-xs font-bold"
-                >
-                  Back to Tutorial
-                </button>
-                <div className="text-xs text-slate-400 font-medium">
-                  Record 2.5s clip to test your sign
-                </div>
-              </div>
-            </div>
+            /* Camera Feed with BiLSTM model; steps and results sit beside the camera */
+            <CameraFeed
+              targetGesture={sign.gestureTarget}
+              signName={sign.name}
+              hindiName={sign.hindiName}
+              signId={sign.id}
+              onSignRecognized={handleSignRecognized}
+              onShowHowTo={() => setStep('study')}
+              isRecordingDataset={true}
+              isDemoMode={isDemoMode}
+              aside={
+                <>
+                  <div className="learn-hint bg-sky-50 border border-sky-200 rounded-2xl p-3 text-xs font-bold text-sky-800 flex items-start gap-1.5">
+                    <Sparkles className="w-4 h-4 text-sky-500 shrink-0" />
+                    <span>
+                      Perform "{sign.name}" in front of the camera ({sign.handsCount === 1 ? '1 hand' : '2 hands'}).
+                      Press record, then sign for 2.5 seconds.
+                    </span>
+                  </div>
+                  {signSteps}
+                  <button
+                    onClick={() => setStep('study')}
+                    className="btn-duo-secondary px-4 py-2 rounded-xl text-xs font-bold self-start"
+                  >
+                    Back to Tutorial
+                  </button>
+                </>
+              }
+            />
           )}
 
           {step === 'complete' && (
-            <div className="flex flex-col items-center text-center py-6 gap-4">
+            <div className="flex flex-col items-center text-center py-2 gap-3">
               <div className="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl shadow-md border-2 border-emerald-200 animate-bounce">
                 ✨
               </div>

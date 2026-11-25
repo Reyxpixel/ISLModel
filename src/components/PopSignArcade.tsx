@@ -92,6 +92,7 @@ export const PopSignArcade: React.FC<PopSignArcadeProps> = ({
   const [bubbles, setBubbles] = useState<BubbleTarget[]>(freshBoard);
   const [targetSign, setTargetSign] = useState<ISLSign>(() => ISL_SIGNS.hello);
   const [bursts, setBursts] = useState<Burst[]>([]);
+  const [missWobble, setMissWobble] = useState<number>(0); // id of the running wobble, 0 = none
   const [showHowToModal, setShowHowToModal] = useState<boolean>(false);
   const [lastFeedback, setLastFeedback] = useState<{ text: string; good: boolean } | null>(null);
 
@@ -156,40 +157,42 @@ export const PopSignArcade: React.FC<PopSignArcadeProps> = ({
   const handleSignRecognized = (result: RecognitionResult) => {
     if (isGameOver || !isPlaying || busyRef.current) return;
 
-    const topLabel = result.topLabel;
-    const isTop1 = topLabel === targetSign.id;
-    const isTop3 = result.predictions.slice(0, 3).some((p) => p.label === targetSign.id);
-    const success = isDemoMode || isTop1 || isTop3;
+    // CameraFeed only calls this for takes it accepted; the rest go to handleSignMissed
+    const isTop1 = result.topLabel === targetSign.id;
+    sounds.playPop();
+    const nextCombo = combo + 1;
+    setCombo(nextCombo);
+    if (nextCombo > maxCombo) setMaxCombo(nextCombo);
+    sounds.playCombo(nextCombo);
 
-    if (success) {
-      sounds.playPop();
-      const nextCombo = combo + 1;
-      setCombo(nextCombo);
-      if (nextCombo > maxCombo) setMaxCombo(nextCombo);
-      sounds.playCombo(nextCombo);
+    const earned = (isTop1 ? 100 : 50) * Math.max(1, nextCombo);
+    setScore((s) => s + earned);
+    setPoppedCount((n) => n + 1);
+    setLastFeedback({ text: `Popped "${targetSign.name}"! +${earned}`, good: true });
 
-      const earned = (isTop1 ? 100 : 50) * Math.max(1, nextCombo);
-      setScore((s) => s + earned);
-      setPoppedCount((n) => n + 1);
-      setLastFeedback({ text: `Popped "${targetSign.name}"! +${earned}`, good: true });
+    confetti({
+      particleCount: 30,
+      spread: 70,
+      origin: { y: 0.45 },
+      colors: ['#0ea5e9', '#38bdf8', '#10b981', '#f59e0b', '#8b5cf6'],
+    });
 
-      confetti({
-        particleCount: 30,
-        spread: 70,
-        origin: { y: 0.45 },
-        colors: ['#0ea5e9', '#38bdf8', '#10b981', '#f59e0b', '#8b5cf6'],
-      });
+    popBubble(targetSign.id, earned);
+    onSampleRecorded();
+    countTarget();
+  };
 
-      popBubble(targetSign.id, earned);
-      onSampleRecorded();
-      countTarget();
-    } else {
-      setCombo(0);
-      setLastFeedback({
-        text: `Looked like "${topLabel.replace(/_/g, ' ')}" (${Math.round(result.topConfidence * 100)}%). Try again or skip.`,
-        good: false,
-      });
-    }
+  // Wrong or unrecognised: the target bubble wobbles and the combo is lost
+  const handleSignMissed = () => {
+    if (isGameOver || !isPlaying || busyRef.current) return;
+    setLastFeedback({
+      text: combo > 1 ? `Not this time, ${combo}x combo lost. Try again or skip.` : 'Not this time. Try again or skip.',
+      good: false,
+    });
+    setCombo(0);
+    const id = Date.now();
+    setMissWobble(id);
+    setTimeout(() => setMissWobble((cur) => (cur === id ? 0 : cur)), 1600);
   };
 
   const handleSkipTarget = useCallback(() => {
@@ -317,12 +320,14 @@ export const PopSignArcade: React.FC<PopSignArcadeProps> = ({
                       setTargetSign(b.sign);
                     }}
                     className={`arcade-bubble ${b.bursting ? 'is-popping' : 'is-new'} ${
-                      isTarget ? 'is-target' : isPlaying ? 'is-idle' : ''
+                      isTarget ? `is-target ${missWobble ? 'is-missed' : ''}` : isPlaying ? 'is-idle' : ''
                     }`}
                     style={{ '--h': b.hue } as React.CSSProperties}
                     title={isPlaying ? `Make "${b.sign.name}" the target` : undefined}
                   >
-                    {isTarget && <span className="arcade-target-tag">Sign this</span>}
+                    {isTarget && (
+                      <span className="arcade-target-tag">{missWobble ? 'Try again' : 'Sign this'}</span>
+                    )}
                     <span className="arcade-bubble-emoji">{b.sign.iconEmoji}</span>
                     <span className="arcade-bubble-word">{b.sign.name}</span>
                     <span className="arcade-bubble-hindi">{b.sign.hindiName}</span>
@@ -381,6 +386,8 @@ export const PopSignArcade: React.FC<PopSignArcadeProps> = ({
               hindiName={targetSign.hindiName}
               signId={targetSign.id}
               onSignRecognized={handleSignRecognized}
+              onSignMissed={handleSignMissed}
+              onShowHowTo={() => setShowHowToModal(true)}
               isRecordingDataset={true}
               isDemoMode={isDemoMode}
             />
@@ -468,7 +475,9 @@ export const PopSignArcade: React.FC<PopSignArcadeProps> = ({
               </button>
             </div>
 
-            <SignVisualizer sign={targetSign} />
+            <div className="learn-media learn-media-howto">
+              <SignVisualizer sign={targetSign} />
+            </div>
 
             <button
               onClick={() => setShowHowToModal(false)}

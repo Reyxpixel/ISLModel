@@ -1,6 +1,6 @@
 Guide clips from the INCLUDE dataset (AI4Bharat), CC BY 4.0.
 Sridhar et al., "INCLUDE: A Large Scale Dataset for Indian Sign Language Recognition", ACM Multimedia 2020. https://zenodo.org/records/4010759
-Trimmed to the signing part and resized to 360 px tall. Not mirrored.
+Trimmed to the signing part and resized to 360 px tall. Not mirrored. Re-encoded to H.264 so they play in browsers.
 
 afternoon: seq_009 train hands 42/42 frames 0-42 (1.7s) 640x360@25 0.21MB  src Days_and_Time/83. Afternoon/MVI_5512.MOV
 alright: seq_001 train hands 68/73 frames 0-73 (2.9s) 640x360@25 0.58MB  src Greetings/50. Alright/MVI_0037.MOV

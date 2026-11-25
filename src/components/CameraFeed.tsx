@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Camera, CameraOff, RefreshCw, Eye, Sparkles, Wand2, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { visionService, FrameDetectionOutput } from '../services/vision';
-import { islRecognizer, RecognizerState, RecognitionResult } from '../services/islRecognizer';
+import { islRecognizer, SUCCESS_CONFIDENCE, RecognizerState, RecognitionResult } from '../services/islRecognizer';
+import { Miss, MissFeedback, missKind } from './MissFeedback';
+import { sounds } from '../services/audio';
 import { dataRecorder } from '../services/dataRecorder';
 
 interface CameraFeedProps {
@@ -10,6 +12,12 @@ interface CameraFeedProps {
   hindiName: string;
   signId: string;
   onSignRecognized?: (result: RecognitionResult) => void;
+  /** The take was wrong or could not be recognised */
+  onSignMissed?: (result: RecognitionResult) => void;
+  /** Adds a "See how to sign it" button to the miss feedback */
+  onShowHowTo?: () => void;
+  /** Shown beside the camera, with the results under it, instead of one tall column */
+  aside?: React.ReactNode;
   isRecordingDataset?: boolean;
   isDemoMode?: boolean;
 }
@@ -20,6 +28,9 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   hindiName,
   signId,
   onSignRecognized,
+  onSignMissed,
+  onShowHowTo,
+  aside,
   isRecordingDataset = true,
   isDemoMode,
 }) => {
@@ -39,6 +50,9 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   const [timerText, setTimerText] = useState<string>('');
   const [lastResult, setLastResult] = useState<RecognitionResult | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string>('');
+  const [miss, setMiss] = useState<Miss | null>(null);
+  const missCountRef = useRef(0);
 
   // Initialize ONNX model & MediaPipe vision
   useEffect(() => {
@@ -60,6 +74,10 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
       setModelStatus('AI Models Active (91 Signs)');
 
+      // A view that closed while the models loaded must not take the webcam from the
+      // view that is open now.
+      if (!isMounted) return;
+
       // 3. Start Camera
       if (videoRef.current && canvasRef.current) {
         const stream = await visionService.startCamera(videoRef.current, canvasRef.current);
@@ -73,6 +91,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
             setHasCamera(false);
             setIsSimulating(false);
             visionService.setSimulation(false);
+            setCameraError(visionService.getCameraError());
           }
           setIsInitializing(false);
         }
@@ -109,6 +128,14 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
     }
   }, [signId, isSimulating]);
 
+  // Miss feedback goes away by itself, and never carries over to another sign
+  useEffect(() => setMiss(null), [signId]);
+  useEffect(() => {
+    if (!miss) return;
+    const t = setTimeout(() => setMiss(null), 4500);
+    return () => clearTimeout(t);
+  }, [miss]);
+
   // Trigger classification when take finishes and save take to dataset
   const handleClassify = useCallback(async () => {
     const res = await islRecognizer.classify(targetGesture);
@@ -116,7 +143,17 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
     const isSuccess =
       isSimulating ||
-      (res.topLabel === targetGesture && res.topConfidence >= 0.45);
+      (res.topLabel === targetGesture && res.topConfidence >= SUCCESS_CONFIDENCE);
+
+    if (!isSuccess) {
+      sounds.playMiss();
+      setMiss({
+        id: ++missCountRef.current,
+        kind: missKind(res, targetGesture),
+        guess: res.topLabel.replace(/_/g, ' '),
+      });
+      onSignMissed?.(res);
+    }
 
     // Save take with labels, model prediction, and verification status for model retraining
     if (dataRecorder.isRecording()) {
@@ -131,7 +168,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
     if (isSuccess && onSignRecognized) {
       onSignRecognized(res);
     }
-  }, [targetGesture, isSimulating, onSignRecognized]);
+  }, [targetGesture, isSimulating, onSignRecognized, onSignMissed]);
 
   // Frame processing loop
   useEffect(() => {
@@ -174,6 +211,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
   const handleStartRecord = () => {
     setLastResult(null);
+    setMiss(null);
     setTimerText('Get ready...');
     if (streamRef.current && hasCamera) {
       dataRecorder.startRecording(streamRef.current, signId, signName, hindiName);
@@ -187,24 +225,29 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
     visionService.setSimulation(nextState, signId);
     islRecognizer.reset();
     setLastResult(null);
+    setMiss(null);
   };
 
   const handleRetryCamera = async () => {
     if (videoRef.current && canvasRef.current) {
       setIsInitializing(true);
+      setCameraError('');
       const stream = await visionService.startCamera(videoRef.current, canvasRef.current);
       if (stream) {
         streamRef.current = stream;
         setHasCamera(true);
         setIsSimulating(false);
         visionService.setSimulation(false);
+      } else {
+        setCameraError(visionService.getCameraError());
       }
       setIsInitializing(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-2.5 w-full">
+    <div className={aside ? 'learn-split' : 'flex flex-col gap-2.5 w-full'}>
+      <div className={aside ? 'learn-media learn-media-camera flex flex-col gap-2.5' : 'contents'}>
       {/* Top Status & Controls Bar */}
       <div className="flex items-center justify-between px-3.5 py-2 bg-slate-100/90 rounded-2xl border border-slate-200/90 text-xs shadow-2xs gap-3">
         {/* Camera Live/Off status */}
@@ -259,7 +302,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       </div>
 
       {/* Camera Video / Canvas Arena */}
-      <div className="relative w-full rounded-3xl bg-slate-100 overflow-hidden shadow-inner border-2 border-slate-200 aspect-4/3 max-h-[440px] flex items-center justify-center">
+      <div
+        className={`relative w-full rounded-3xl bg-slate-100 overflow-hidden shadow-inner border-2 border-slate-200 aspect-4/3 max-h-[440px] flex items-center justify-center ${
+          miss && recogState === 'ready' ? 'miss-shake' : ''
+        }`}
+      >
         {/* Hidden Video Source for MediaPipe */}
         <video
           ref={videoRef}
@@ -288,6 +335,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
             <p className="text-xs text-slate-500 max-w-xs mb-4 font-semibold leading-relaxed">
               Enable webcam access to test your signing live, or switch on <strong>Demo Mode</strong> above to test with authentic recordings!
             </p>
+            {cameraError && (
+              <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 max-w-sm mb-4">
+                {cameraError}
+              </p>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={handleRetryCamera}
@@ -344,23 +396,32 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           </div>
         )}
 
+        {/* Wrong / not recognised (the counterpart of the success confetti) */}
+        {miss && recogState === 'ready' && (
+          <MissFeedback miss={miss} signName={signName} onShowHowTo={onShowHowTo} />
+        )}
+
         {/* Action Button: Start Recording Take */}
         {(hasCamera || isSimulating) && recogState === 'ready' && (
-          <div className="absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-2">
+          <div className="absolute bottom-3 left-3 right-3 z-30 flex flex-col gap-2">
             <button
               onClick={handleStartRecord}
               className="w-full btn-duo-primary py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:scale-[1.01] active:scale-95 transition-all"
             >
               <Play className="w-4 h-4 fill-white" />
-              <span>Record Sign (Space or Click)</span>
+              <span>{miss ? 'Try again (Space or Click)' : 'Record Sign (Space or Click)'}</span>
             </button>
           </div>
         )}
       </div>
 
+      </div>
+
+      <div className={aside ? 'learn-side' : 'contents'}>
+      {aside}
       {/* Recognition Results & Confidence Cards */}
       {lastResult && (
-        <div className="bg-white rounded-2xl p-4 border-2 border-slate-200/90 shadow-sm flex flex-col gap-3 animate-in fade-in duration-200">
+        <div className="learn-result bg-white rounded-2xl p-3 border-2 border-slate-200/90 shadow-sm flex flex-col gap-2 animate-in fade-in duration-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {lastResult.topLabel === targetGesture ? (
@@ -403,6 +464,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

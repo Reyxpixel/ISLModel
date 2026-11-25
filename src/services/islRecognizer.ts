@@ -11,13 +11,18 @@ export interface RecognitionResult {
   topLabel: string;
   topConfidence: number;
   feedbackMessage: string;
+  status: 'ok' | 'no_hands' | 'error';
 }
+
+// A take counts as correct when the target is the top guess at this confidence
+export const SUCCESS_CONFIDENCE = 0.45;
 
 const EMPTY_RESULT: RecognitionResult = {
   predictions: [],
   topLabel: '',
   topConfidence: 0,
   feedbackMessage: 'Position your hands in the camera frame',
+  status: 'no_hands',
 };
 
 class ISLRecognizer {
@@ -134,6 +139,7 @@ class ISLRecognizer {
       this.setState('ready');
       return {
         ...EMPTY_RESULT,
+        status: this.session && this.config ? 'no_hands' : 'error',
         feedbackMessage: 'No hand data captured. Keep hands visible and try again.',
       };
     }
@@ -159,7 +165,7 @@ class ISLRecognizer {
 
       const top = predictions[0];
       const isMatch = targetLabel ? top.label === targetLabel : true;
-      const isConfident = top.p >= 0.5;
+      const isConfident = top.p >= (isMatch ? SUCCESS_CONFIDENCE : 0.5);
 
       let feedbackMessage: string;
       if (isConfident && isMatch) {
@@ -176,12 +182,14 @@ class ISLRecognizer {
         topLabel: top.label,
         topConfidence: top.p,
         feedbackMessage,
+        status: 'ok',
       };
     } catch (err) {
       console.error('ONNX inference error:', err);
       this.setState('ready');
       return {
         ...EMPTY_RESULT,
+        status: 'error',
         feedbackMessage: 'Model inference failed. Please try again.',
       };
     }

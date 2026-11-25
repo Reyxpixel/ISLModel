@@ -50,6 +50,8 @@ class VisionService {
   private subscribers: Set<DetectionCallback> = new Set();
   private simulationActive: boolean = false;
   private simulatedSignId: string = 'hello';
+  private cameraError: string = '';
+  private cameraRequest: number = 0;
   private simFrames: number[][][][] | null = null; // [N][2][21][3]
   private simPresent: boolean[][] | null = null; // [N][2]; absent hands still hold placeholder points
   private simFrameIndex: number = 0;
@@ -187,37 +189,65 @@ class VisionService {
    * Start webcam video stream
    */
   public async startCamera(videoEl: HTMLVideoElement, canvasEl: HTMLCanvasElement): Promise<MediaStream | null> {
+    // Only one camera view runs at a time: release any earlier stream and loop first
+    // (a leftover loop or stream from another view kept the webcam busy).
+    this.stopCamera();
+    const request = this.cameraRequest; // changes if a newer start or a stop replaces this one
     this.videoElement = videoEl;
     this.canvasElement = canvasEl;
+    this.cameraError = '';
 
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user',
-        },
-        audio: false,
-      };
-
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-      this.videoElement.srcObject = this.stream;
-      await this.videoElement.play();
-
-      this.startDetectionLoop();
-      return this.stream;
-    } catch (cameraErr) {
-      console.warn('Camera access denied or unavailable:', cameraErr);
-      this.simulationActive = false;
-      this.startDetectionLoop();
-      return null;
+    const attempts: MediaStreamConstraints[] = [
+      { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false },
+      { video: true, audio: false }, // some webcams reject the size hints
+    ];
+    let lastErr: unknown = null;
+    for (const constraints of attempts) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (request !== this.cameraRequest) {
+          stream.getTracks().forEach((t) => t.stop());
+          return null;
+        }
+        this.stream = stream;
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        if (request !== this.cameraRequest) return null;
+        this.startDetectionLoop();
+        return stream;
+      } catch (err) {
+        if (request !== this.cameraRequest) return null;
+        lastErr = err;
+        const name = (err as DOMException)?.name;
+        if (name === 'NotAllowedError' || name === 'SecurityError') break; // retrying won't help
+      }
     }
+
+    console.warn('Camera access denied or unavailable:', lastErr);
+    const name = (lastErr as DOMException)?.name;
+    this.cameraError =
+      name === 'NotAllowedError' || name === 'SecurityError'
+        ? 'Camera permission is blocked. Click the camera icon in the address bar, allow it, then try again.'
+        : name === 'NotReadableError' || name === 'AbortError'
+        ? 'The webcam is busy in another app or browser (Teams, Zoom, Camera, another browser window). Close it and try again.'
+        : name === 'NotFoundError' || name === 'OverconstrainedError'
+        ? 'No webcam was found. Plug one in and try again.'
+        : `Could not start the webcam (${name || 'unknown error'}).`;
+    this.simulationActive = false;
+    this.startDetectionLoop();
+    return null;
+  }
+
+  /** Why the last startCamera() failed, in plain words ('' if it worked). */
+  public getCameraError(): string {
+    return this.cameraError;
   }
 
   /**
    * Stop camera and processing loops
    */
   public stopCamera() {
+    this.cameraRequest++;
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
@@ -235,6 +265,7 @@ class VisionService {
    * Main detection loop matching ISLModel/web/index.html
    */
   private startDetectionLoop() {
+    if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     let lastVideoTime = -1;
 
     const loop = () => {
